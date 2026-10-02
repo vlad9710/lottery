@@ -200,6 +200,11 @@ th { font-weight: 600; }
   .sums button:hover { background: var(--gold); color: var(--ink); transform: translateY(-1px); }
   .sums button:disabled { opacity: .5; cursor: default; }
   .report-done { margin: 0; font-weight: 600; }
+  /* Предупреждение о гарантированной линии */
+  .guard { margin: 0 0 18px; padding: 14px 16px; background: #fff; border: 1px solid var(--rule); border-left: 4px solid var(--tile); border-radius: 12px; max-width: 46ch; }
+  .guard-title { margin: 0 0 4px; font-weight: 600; }
+  .guard-text { margin: 0 0 12px; font-size: 15px; color: var(--muted); }
+  .guard .btn { padding: 6px 16px; font-size: 14px; }
   .elf-check { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 9px 12px; background: #FCEFC7; border-radius: 10px; font-size: 15px; cursor: pointer; }
   .elf-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--tile); flex: none; }
 
@@ -247,6 +252,11 @@ th { font-weight: 600; }
       <p class="step" id="step"></p>
       <p class="verdict" id="verdict"></p>
       <p class="sub" id="sub"></p>
+      <div class="guard" id="guard" hidden>
+        <p class="guard-title" id="guardTitle"></p>
+        <p class="guard-text" id="guardText"></p>
+        <button class="btn" id="guardBtn" type="button">Взять гарантию</button>
+      </div>
       <div class="report" id="report" hidden>
         <p class="report-q">Какая сумма выпала? Нажмите на неё</p>
         <p class="report-note" id="reportNote"></p>
@@ -576,6 +586,32 @@ th { font-weight: 600; }
     if (allOpened && elfCandidates(grid).length) elfChance = true;
   }
 
+  // Есть гарантированная линия, а советуемая чаще даёт меньше неё — предупреждаем
+  let guardLine = -1;
+  function renderGuard(ev) {
+    guardLine = -1;
+    LINES.forEach((l, i) => {
+      if (l.every(c => grid[c]) && (guardLine < 0 || ev[i] > ev[guardLine])) guardLine = i;
+    });
+    if (guardLine < 0 || guardLine === bestLine) return;
+    const val = ev[guardLine];
+    const pLess = lineOutcomes(grid, LINES[bestLine]).filter(o => o.pay < val).reduce((a, o) => a + o.p, 0);
+    if (pLess <= 0.5) return;
+    // Ради чего рискуют: крупные выигрыши (420+) выше гарантии, а если их нет — лучший исход
+    const outs = lineOutcomes(grid, LINES[bestLine]).filter(o => o.pay > val);
+    let top = outs.filter(o => o.pay >= 420);
+    if (!top.length) top = outs.slice(0, 1);
+    const pct = o => Math.round(o.p * 100) + "%";
+    const prize = top.length === 1
+      ? "с шансом " + pct(top[0]) + " там " + (top[0].pay >= 1008 ? "джекпот " : "") + top[0].pay
+      : "с шансом " + top.map(o => pct(o) + " — " + o.pay).join(", ");
+    $("guardTitle").textContent = "Можно взять гарантию: " + LINE_SHORT[guardLine].toLowerCase() + " — " + plural(Math.round(val), "очко", "очка", "очков") + ".";
+    $("guardText").textContent = LINE_SHORT[bestLine] + " в " + Math.round(pLess * 10) + " из 10 случаев даст меньше " + fmt(val) +
+      ", зато " + prize + ". В среднем — " + fmt(ev[bestLine]) + ".";
+    $("guard").hidden = false;
+  }
+  $("guardBtn").addEventListener("click", () => { selLine = guardLine; renderDetail(); paintCells(); renderReport(); });
+
   let updateId = 0;
   let finished = false;  // партия дошла до выбора линии
 
@@ -584,6 +620,7 @@ th { font-weight: 600; }
     const known = grid.filter(Boolean).length;
     lastCells = Array(9).fill(null); lastBest = -1; bestLine = -1; finished = false;
     $("report").hidden = true;
+    $("guard").hidden = true;
 
     if (known === 0) {
       selLine = -1;
@@ -624,6 +661,7 @@ th { font-weight: 600; }
       } else {
         $("verdict").textContent = "Берите " + LINE_NAMES[bestLine];
         $("sub").textContent = sure ? "Это гарантированные " + fmt(ev[bestLine]) + " очков." : "В среднем около " + fmt(ev[bestLine]) + " очков.";
+        renderGuard(ev);
       }
       finished = m === 0 || early;
       noteElfChance(m === 0);
