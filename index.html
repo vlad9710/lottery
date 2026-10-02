@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Игровые разборы</title>
+<meta name="description" content="Гайды и калькуляторы для мини-игр: как играть выгоднее и почему.">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .guides { list-style: none; padding: 0; margin: 0; max-width: 720px; }
+  .guides li { border-top: 2px solid var(--ink); padding: 22px 0 26px; }
+  .guides a { text-decoration: none; color: var(--ink); display: grid; grid-template-columns: 88px 1fr; gap: 20px; align-items: start; }
+  .guides a:hover .guide-title { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  .guide-title { font: 700 22px/1.2 var(--display); margin: 0 0 6px; }
+  .guide-text { color: var(--muted); margin: 0; }
+  .mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .mini span { aspect-ratio: 1; border-radius: 7px; background: var(--petal); display: grid; place-items: center; font: 700 14px var(--display); color: #fff; }
+  .mini .k { background: var(--tile); }
+  .mini .b { background: var(--gold); color: var(--ink); }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="site-name" href="index.html">Игровые разборы</a>
+</header>
+<main>
+  <h1>Как играть в мини-игры выгоднее</h1>
+  <p class="lede">Разборы с расчётами: что открывать, что выбирать и сколько это реально даёт. Там, где можно, есть калькулятор, который считает ход за вас.</p>
+
+  <ul class="guides">
+    <li>
+      <a href="lottery.html">
+        <div class="mini" aria-hidden="true">
+          <span class="k">8</span><span class="k">3</span><span></span>
+          <span></span><span class="k">9</span><span></span>
+          <span></span><span></span><span class="b">?</span>
+        </div>
+        <div>
+          <p class="guide-title">Моментальная лотерея</p>
+          <p class="guide-text">Поле 3×3, три открытия, выбор линии. Калькулятор лучшего хода и статистика игроков.</p>
+        </div>
+      </a>
+    </li>
+  </ul>
+</main>
+<footer class="footer">Расчёты сделаны полным перебором всех раскладов.</footer>
+</body>
+</html>
