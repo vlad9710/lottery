@@ -202,7 +202,6 @@ th { font-weight: 600; }
   .report-done { margin: 0; font-weight: 600; }
   .elf-check { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 9px 12px; background: #FCEFC7; border-radius: 10px; font-size: 15px; cursor: pointer; }
   .elf-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--tile); flex: none; }
-  .elf-note { margin: 0 0 4px; padding: 10px 14px; background: #FCEFC7; border-radius: 12px; font-size: 15px; max-width: 46ch; }
 
   /* Статистика игроков */
   .stats h2 { margin: 48px 0 14px; font-size: 20px; }
@@ -247,7 +246,6 @@ th { font-weight: 600; }
       <p class="step" id="step"></p>
       <p class="verdict" id="verdict"></p>
       <p class="sub" id="sub"></p>
-      <p class="elf-note" id="elfNote" hidden></p>
       <div class="report" id="report" hidden>
         <p class="report-q">Какая сумма выпала? Нажмите на неё</p>
         <p class="report-note" id="reportNote"></p>
@@ -580,7 +578,6 @@ th { font-weight: 600; }
     const known = grid.filter(Boolean).length;
     lastCells = Array(9).fill(null); lastBest = -1; bestLine = -1; finished = false;
     $("report").hidden = true;
-    $("elfNote").hidden = true;
 
     if (known === 0) {
       selLine = -1;
@@ -621,11 +618,6 @@ th { font-weight: 600; }
       } else {
         $("verdict").textContent = "Берите " + LINE_NAMES[bestLine];
         $("sub").textContent = sure ? "Это гарантированные " + fmt(ev[bestLine]) + " очков." : "В среднем около " + fmt(ev[bestLine]) + " очков.";
-        const elf = elfState(grid);
-        if (elf.possible && !elf.shown) {
-          $("elfNote").hidden = false;
-          $("elfNote").textContent = "Если фея показала, где стоит " + elf.miss + ", впишите эту цифру в поле — совет пересчитается.";
-        }
       }
       finished = m === 0 || early;
       selLine = finished ? bestLine : -1;
