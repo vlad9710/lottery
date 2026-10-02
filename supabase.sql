@@ -12,7 +12,8 @@ create table public.games (
   score         integer  not null check (score between 0 and 10000),         -- полученные очки
   expected      integer  not null check (expected between 0 and 10000),      -- средний выигрыш выбранной линии по расчёту
   best_expected integer  not null check (best_expected between 0 and 10000), -- средний выигрыш лучшей линии
-  p_big         real     not null check (p_big between 0 and 1),             -- шанс крупного выигрыша (420+) по расчёту
+  p_jack        real     not null default 0 check (p_jack between 0 and 1),  -- шанс джекпота (1-2-3 или 7-8-9) по расчёту
+  p_big         real     not null check (p_big between 0 and 1),             -- шанс крупного выигрыша (420–840) по расчёту
   p_mid         real     not null check (p_mid between 0 and 1),             -- шанс среднего (105–280) по расчёту
   elf_possible  boolean  not null,                                           -- фея могла появиться
   elf_shown     boolean  not null check (elf_possible or not elf_shown)      -- фея появилась
@@ -37,19 +38,23 @@ select
   coalesce(round(avg(score) filter (where line = best_line)), 0)::int as avg_followed,
   (count(*) filter (where line <> best_line))::int                    as n_other,
   coalesce(round(avg(score) filter (where line <> best_line)), 0)::int as avg_other,
-  -- как часто выпадали крупные / средние / мелкие выигрыши и как часто должны были
-  (count(*) filter (where score >= 420))::int                               as big_n,
+  -- как часто выпадали группы выигрышей и как часто должны были:
+  -- джекпот 1008–1680 (1-2-3, 7-8-9), крупный 420–840, средний 105–280, мелкий 34–84
+  (count(*) filter (where score >= 420 and score < 1008))::int              as big_n,
   (count(*) filter (where score >= 100 and score < 420))::int               as mid_n,
   (count(*) filter (where score < 100))::int                                as small_n,
-  coalesce(round(100.0 * avg((score >= 420)::int)), 0)::int                 as big_pct,
+  coalesce(round(100.0 * avg((score >= 420 and score < 1008)::int)), 0)::int as big_pct,
   coalesce(round(100.0 * avg(p_big)), 0)::int                               as big_exp,
   coalesce(round(100.0 * avg((score >= 100 and score < 420)::int)), 0)::int as mid_pct,
   coalesce(round(100.0 * avg(p_mid)), 0)::int                               as mid_exp,
   coalesce(round(100.0 * avg((score < 100)::int)), 0)::int                  as small_pct,
-  coalesce(round(100.0 * avg(1 - p_big - p_mid)), 0)::int                   as small_exp,
+  coalesce(round(100.0 * avg(1 - p_jack - p_big - p_mid)), 0)::int         as small_exp,
   -- фея: сколько раз могла появиться и сколько появилась
   (count(*) filter (where elf_possible))::int                               as elf_chances,
-  (count(*) filter (where elf_shown))::int                                  as elf_n
+  (count(*) filter (where elf_shown))::int                                  as elf_n,
+  (count(*) filter (where score >= 1008))::int                              as jack_n,
+  coalesce(round(100.0 * avg((score >= 1008)::int), 1), 0)::real           as jack_pct,
+  coalesce(round(100.0 * avg(p_jack)::numeric, 1), 0)::real                as jack_exp
 from public.games;
 
 grant select on public.games_stats to anon;
