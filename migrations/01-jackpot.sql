@@ -2,7 +2,7 @@
 -- Выполнить один раз: Supabase → SQL Editor → вставить весь файл → Run.
 
 alter table public.games
-  add column p_jack real not null default 0 check (p_jack between 0 and 1);
+  add column if not exists p_jack real not null default 0 check (p_jack between 0 and 1);
 
 create or replace view public.games_stats as
 select
