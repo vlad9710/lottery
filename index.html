@@ -798,7 +798,7 @@ th { font-weight: 600; }
 
       // 2. Как часто выпадают крупные выигрыши — по факту и по расчёту
       $("stGroups").innerHTML = "<h3>Как часто что выпадает (из " + plural(st.games, "партии", "партий", "партий") + ")</h3>" +
-        '<p class="st-text cmp-note">Тёмная полоса — сколько выпало на самом деле. Светлая — сколько должно было выпасть, если цифры в игре раскладываются случайно.</p><div class="cmp">' +
+        '<p class="st-text cmp-note">Тёмная полоса — сколько выпало на самом деле. Светлая — сколько должно было выпасть, если у всех раскладов цифр равные шансы.</p><div class="cmp">' +
         '<div class="cmp-row"><span class="cmp-name">Джекпот<small>1‑2‑3, 7‑8‑9</small></span>' + bars(st.jack_pct, st.jack_exp, st.jack_n, st.games) + "</div>" +
         '<div class="cmp-row"><span class="cmp-name">Крупный<small>420–840</small></span>' + bars(st.big_pct, st.big_exp, st.big_n, st.games) + "</div>" +
         '<div class="cmp-row"><span class="cmp-name">Средний<small>105–280</small></span>' + bars(st.mid_pct, st.mid_exp, st.mid_n, st.games) + "</div>" +
