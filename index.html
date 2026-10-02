@@ -620,13 +620,14 @@ th { font-weight: 600; }
         $("sub").textContent = sure ? "Это гарантированные " + fmt(ev[bestLine]) + " очков." : "В среднем около " + fmt(ev[bestLine]) + " очков.";
       }
       finished = m === 0 || early;
+      if (finished) sendStart();
       selLine = finished ? bestLine : -1;
       renderDetail(); paintCells(); renderReport();
     }, 20);
   }
 
   $("reset").addEventListener("click", () => {
-    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; elfTouched = false; $("elfCheck").checked = false; update();
+    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; elfTouched = false; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; update();
   });
 
   // ---------- Статистика ----------
@@ -635,6 +636,11 @@ th { font-weight: 600; }
   const SUPABASE_KEY = "sb_publishable_hjJMEKolOtE_h11lohheuw_Z8l6GQAf";
   const statsOn = Boolean(SUPABASE_URL && SUPABASE_KEY);
   let sent = false;
+  // Id партии: связывает «дошёл до выбора линии» и «отметил результат»
+  const newGameId = () => (crypto.randomUUID ? crypto.randomUUID() :
+    "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (c ^ Math.random() * 16 >> c / 4).toString(16)));
+  let gameId = newGameId();
+  let startSent = false;
   let elfTouched = false;  // игрок сам трогал галочку — больше не переставляем
   $("elfCheck").addEventListener("change", () => { elfTouched = true; });
 
@@ -652,6 +658,14 @@ th { font-weight: 600; }
       ...opts,
       headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY, "Content-Type": "application/json", ...(opts.headers || {}) }
     });
+  }
+
+  // Первый этап: партия дошла до выбора линии (результата ещё нет)
+  function sendStart() {
+    if (!statsOn || startSent) return;
+    startSent = true;
+    api("starts", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ game_id: gameId, player: playerId() }) })
+      .catch(() => { /* статистика необязательна */ });
   }
 
   // Кнопки с возможными суммами выбранной линии
@@ -685,6 +699,7 @@ th { font-weight: 600; }
     const outs = lineOutcomes(grid, LINES[selLine]);
     const groupChance = test => Number(outs.filter(test).reduce((a, x) => a + x.p, 0).toFixed(4));
     const row = {
+      game_id: gameId,
       player: playerId(),
       grid: grid.join(""),
       line: selLine,
@@ -701,12 +716,17 @@ th { font-weight: 600; }
     };
     try {
       const r = await api("games", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
-      if (!r.ok) throw new Error(r.status);
+      if (!r.ok) throw new Error(await r.text());
       sent = true;
       renderReport();
       loadStats();
     } catch (e) {
-      $("reportNote").textContent = "Не получилось отправить. Проверьте интернет и попробуйте ещё раз.";
+      const msg = String(e.message);
+      $("reportNote").textContent =
+        msg.includes("rate_limit") ? "Слишком часто. Подождите несколько секунд и нажмите ещё раз." :
+        msg.includes("bad_game") ? "Такой партии быть не может — проверьте цифры на поле." :
+        msg.includes("duplicate") ? "Эта партия уже записана. Для новой нажмите «Начать заново»." :
+        "Не получилось отправить. Проверьте интернет и попробуйте ещё раз.";
       [...$("reportSums").children].forEach(b => b.disabled = false);
     }
   }
@@ -742,7 +762,8 @@ th { font-weight: 600; }
       $("stFair").innerHTML = "<h3>Средний выигрыш игроков</h3>" +
         '<p class="st-big">' + fmt(st.avg_score) + " очков за партию</p>" +
         '<p class="st-text">' +
-        "Посчитано по " + plural(st.games, "партии", "партиям", "партиям") + ".</p>";
+        "Посчитано по " + plural(st.games, "партии", "партиям", "партиям") + "." +
+        (st.started ? " Результат отметили в " + Math.min(100, Math.round(100 * st.reported / st.started)) + "% партий, дошедших до выбора линии." : "") + "</p>";
 
       // 2. Как часто выпадают крупные выигрыши — по факту и по расчёту
       $("stGroups").innerHTML = "<h3>Как часто что выпадает (из " + plural(st.games, "партии", "партий", "партий") + ")</h3>" +
