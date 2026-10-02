@@ -4,6 +4,10 @@
 -- 1. Двухэтапная запись: «дошёл до выбора линии» (starts) и «отметил результат» (games)
 alter table public.games add column if not exists game_id uuid unique;
 
+-- Сколько раз за партию фея могла появиться (после каждого открытия — свой шанс)
+alter table public.games add column if not exists elf_moments smallint not null default 0
+  check (elf_moments between 0 and 3);
+
 create table if not exists public.starts (
   game_id    uuid primary key,
   player     text not null check (length(player) between 1 and 20),
@@ -89,7 +93,7 @@ $$;
 drop trigger if exists starts_check on public.starts;
 create trigger starts_check before insert on public.starts for each row execute function public.starts_check();
 
--- 5. Сводка: добавлены started и reported
+-- 5. Сводка: добавлены started и reported, фея считается по моментам
 create or replace view public.games_stats as
 select
   count(*)::int                                                       as games,
@@ -115,7 +119,7 @@ select
   coalesce(round(100.0 * avg((score < 100)::int)), 0)::int                  as small_pct,
   coalesce(round(100.0 * avg(1 - p_jack - p_big - p_mid)), 0)::int         as small_exp,
   -- фея: сколько раз могла появиться и сколько появилась
-  (count(*) filter (where elf_possible))::int                               as elf_chances,
+  coalesce(sum(greatest(elf_moments, elf_possible::int)), 0)::int          as elf_chances,
   (count(*) filter (where elf_shown))::int                                  as elf_n,
   (count(*) filter (where score >= 1008))::int                              as jack_n,
   coalesce(round(100.0 * avg((score >= 1008)::int), 1), 0)::real           as jack_pct,
@@ -124,3 +128,17 @@ select
   (select count(*) from public.starts)::int                                 as started,
   (count(*) filter (where game_id is not null))::int                        as reported
 from public.games;
+
+-- 6. Личная статистика: фея тоже по моментам
+create or replace function public.player_stats(p text)
+returns table (games int, total int, avg_score int, avg_expected int, elf_chances int, elf_n int)
+language sql stable security definer set search_path = public as $$
+  select count(*)::int,
+         coalesce(sum(score), 0)::int,
+         coalesce(round(avg(score)), 0)::int,
+         coalesce(round(avg(expected)), 0)::int,
+         coalesce(sum(greatest(elf_moments, elf_possible::int)), 0)::int,
+         (count(*) filter (where elf_shown))::int
+  from games
+  where player = p
+$$;
