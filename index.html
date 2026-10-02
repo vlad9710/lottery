@@ -200,6 +200,10 @@ th { font-weight: 600; }
   .sums button:hover { background: var(--gold); color: var(--ink); transform: translateY(-1px); }
   .sums button:disabled { opacity: .5; cursor: default; }
   .report-done { margin: 0; font-weight: 600; }
+  .elf-offer { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 6px; }
+  .elf-offer button { border: 0; border-radius: 12px; padding: 9px 14px; cursor: pointer; background: #FCEFC7; color: var(--ink); font: 500 15px var(--text); box-shadow: 0 2px 0 var(--gold); }
+  .elf-offer button:hover { background: var(--gold); }
+  .cell.elf { box-shadow: inset 0 0 0 4px var(--gold); }
   .elf-check { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 9px 12px; background: #FCEFC7; border-radius: 10px; font-size: 15px; cursor: pointer; }
   .elf-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--tile); flex: none; }
 
@@ -246,6 +250,7 @@ th { font-weight: 600; }
       <p class="step" id="step"></p>
       <p class="verdict" id="verdict"></p>
       <p class="sub" id="sub"></p>
+      <div class="elf-offer" id="elfOffer" hidden></div>
       <div class="report" id="report" hidden>
         <p class="report-q">Какая сумма выпала? Нажмите на неё</p>
         <p class="report-note" id="reportNote"></p>
@@ -338,52 +343,51 @@ th { font-weight: 600; }
       .sort((a, b) => b.pay - a.pay || a.sum - b.sum);
   }
 
-  function bonusSet(g) {
-    const known = g.filter(Boolean);
-    if (known.length !== 4) return null;
-    for (const S of [[1,2,3],[7,8,9]]) {
-      const have = S.filter(d => known.includes(d));
-      if (have.length === 2) return { set: S, miss: S.find(d => !known.includes(d)) };
+  // Фея: после любого открытия, если в одной линии стоят две цифры из 1-2-3 (или 7-8-9),
+  // третья клетка этой линии закрыта, а недостающей цифры на поле нет, —
+  // с шансом 20% фея ставит её в эту клетку. Срабатывает один раз за партию.
+  const ELF_CHANCE = 0.2;
+  let elfCell = -1;      // клетка, куда фея поставила цифру (-1 — не ставила)
+  let elfChance = false; // в этой партии фея могла сработать
+
+  function elfCandidates(g) {
+    const out = [];
+    for (const S of [[1,2,3],[7,8,9]]) for (const l of LINES) {
+      const empty = l.filter(i => !g[i]);
+      if (empty.length !== 1) continue;
+      const have = l.map(i => g[i]).filter(v => S.includes(v));
+      if (have.length !== 2) continue;
+      const miss = S.find(d => !have.includes(d));
+      if (g.includes(miss)) continue;
+      if (!out.some(c => c.cell === empty[0] && c.digit === miss)) out.push({ cell: empty[0], digit: miss });
     }
-    return null;
+    return out;
   }
 
-  // Фея: могла ли появиться (после трёх открытий видны две цифры из 1-2-3 или 7-8-9)
-  // и появилась ли (игрок вписал показанную цифру — тогда в поле пять цифр и группа целиком)
-  function elfState(g) {
-    const known = g.filter(Boolean);
-    if (known.length === 4) {
-      const b = bonusSet(g);
-      return { possible: Boolean(b), shown: false, miss: b ? b.miss : 0 };
-    }
-    if (known.length === 5) {
-      const full = [[1,2,3],[7,8,9]].some(S => S.every(d => known.includes(d)));
-      return { possible: full, shown: full, miss: 0 };
-    }
-    return { possible: false, shown: false, miss: 0 };
+  function elfState() {
+    return { possible: elfChance || elfCell >= 0, shown: elfCell >= 0 };
   }
 
-  function finalValue(g) {
-    const base = Math.max(...lineEVs(g));
-    const b = bonusSet(g);
-    if (!b) return base;
-    const empty = [];
-    g.forEach((v, i) => { if (!v) empty.push(i); });
-    let sum = 0;
-    for (const i of empty) { const gg = g.slice(); gg[i] = b.miss; sum += Math.max(...lineEVs(gg)); }
-    return 0.8 * base + 0.2 * (sum / empty.length);
+  // Итог партии сразу после открытия: здесь может сработать фея
+  function afterOpen(g, m, used) {
+    const c = used ? [] : elfCandidates(g);
+    if (!c.length) return W(g, m, used);
+    let s = 0;
+    for (const { cell, digit } of c) { g[cell] = digit; s += W(g, m, true); g[cell] = 0; }
+    return (1 - ELF_CHANCE) * W(g, m, false) + ELF_CHANCE * s / c.length;
   }
 
-  function W(g, m) {
-    if (m === 0) return finalValue(g);
-    const key = g.join("") + "|" + m;
+  // Лучший средний итог, если осталось m открытий; used — фея уже сработала
+  function W(g, m, used) {
+    if (m === 0) return Math.max(...lineEVs(g));
+    const key = g.join("") + "|" + m + "|" + (used ? 1 : 0);
     if (memoW.has(key)) return memoW.get(key);
     const r = rest(g);
     let best = -1;
     for (let i = 0; i < 9; i++) {
       if (g[i]) continue;
       let s = 0;
-      for (const d of r) { g[i] = d; s += W(g, m - 1); }
+      for (const d of r) { g[i] = d; s += afterOpen(g, m - 1, used); }
       g[i] = 0;
       best = Math.max(best, s / r.length);
     }
@@ -391,12 +395,12 @@ th { font-weight: 600; }
     return best;
   }
 
-  function cellValues(g, m) {
+  function cellValues(g, m, used) {
     const r = rest(g), out = Array(9).fill(null);
     for (let i = 0; i < 9; i++) {
       if (g[i]) continue;
       let s = 0;
-      for (const d of r) { g[i] = d; s += W(g, m - 1); }
+      for (const d of r) { g[i] = d; s += afterOpen(g, m - 1, used); }
       g[i] = 0;
       out[i] = s / r.length;
     }
@@ -485,6 +489,7 @@ th { font-weight: 600; }
       return;
     }
     grid[i] = d;
+    if (i === elfCell) elfCell = -1;
     picked = -1; pad.hidden = true;
     hint(HINT_IDLE);
     update();
@@ -529,6 +534,7 @@ th { font-weight: 600; }
       if (i === lastBest) b.classList.add("best");
       if (inLine.includes(i)) b.classList.add("inline");
       if (i === picked) b.classList.add("picked");
+      if (i === elfCell) b.classList.add("elf");
       if (grid[i]) { b.textContent = grid[i]; b.setAttribute("aria-label", CELL_NAMES[i] + ": " + grid[i]); }
       else if (i === lastBest) { b.textContent = ""; b.setAttribute("aria-label", CELL_NAMES[i] + ", лучший ход"); }
       else { b.textContent = ""; b.setAttribute("aria-label", CELL_NAMES[i] + ", пусто"); }
@@ -570,6 +576,23 @@ th { font-weight: 600; }
     });
   }
 
+  // Если фея могла сработать — кнопка, чтобы отметить, что она поставила цифру
+  function renderElfOffer() {
+    const box = $("elfOffer");
+    const c = elfCell >= 0 || grid.filter(Boolean).length < 2 ? [] : elfCandidates(grid);
+    box.hidden = !c.length;
+    box.innerHTML = "";
+    if (!c.length) return;
+    elfChance = true;
+    c.forEach(({ cell, digit }) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = "Фея поставила " + digit + (c.length > 1 ? " — " + CELL_NAMES[cell] : "");
+      b.addEventListener("click", () => { grid[cell] = digit; elfCell = cell; update(); });
+      box.appendChild(b);
+    });
+  }
+
   let updateId = 0;
   let finished = false;  // партия дошла до выбора линии
 
@@ -578,6 +601,7 @@ th { font-weight: 600; }
     const known = grid.filter(Boolean).length;
     lastCells = Array(9).fill(null); lastBest = -1; bestLine = -1; finished = false;
     $("report").hidden = true;
+    $("elfOffer").hidden = true;
 
     if (known === 0) {
       selLine = -1;
@@ -589,9 +613,11 @@ th { font-weight: 600; }
 
     const ev = lineEVs(grid);
     bestLine = ev.indexOf(Math.max(...ev));
-    const m = Math.max(0, 4 - known);
+    const used = elfCell >= 0;
+    const opened = known - (used ? 1 : 0);  // стартовая цифра + открытия, без цифры феи
+    const m = Math.max(0, 4 - opened);
     const sure = LINES[bestLine].every(i => grid[i]);
-    $("step").textContent = m > 0 ? "Ход " + known + " из 3" : "Все ходы сделаны";
+    $("step").textContent = m > 0 ? "Ход " + opened + " из 3" : "Все ходы сделаны";
     $("verdict").textContent = "Считаю…";
     $("sub").textContent = "";
     paintCells();
@@ -601,7 +627,7 @@ th { font-weight: 600; }
       if (id !== updateId) return;
       let early = false;
       if (m > 0) {
-        lastCells = cellValues(grid.slice(), m);
+        lastCells = cellValues(grid.slice(), m, used);
         let bv = -1;
         lastCells.forEach((v, i) => { if (v != null && v > bv) { bv = v; lastBest = i; } });
         // Готовая линия, лучше которой открытия уже ничего не дадут (1-2-3 или 7-8-9)
@@ -620,6 +646,7 @@ th { font-weight: 600; }
         $("sub").textContent = sure ? "Это гарантированные " + fmt(ev[bestLine]) + " очков." : "В среднем около " + fmt(ev[bestLine]) + " очков.";
       }
       finished = m === 0 || early;
+      renderElfOffer();
       if (finished) sendStart();
       selLine = finished ? bestLine : -1;
       renderDetail(); paintCells(); renderReport();
@@ -627,7 +654,7 @@ th { font-weight: 600; }
   }
 
   $("reset").addEventListener("click", () => {
-    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; elfTouched = false; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; update();
+    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; elfTouched = false; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfCell = -1; elfChance = false; update();
   });
 
   // ---------- Статистика ----------
@@ -680,7 +707,7 @@ th { font-weight: 600; }
       return;
     }
     $("elfCheckWrap").hidden = false;
-    if (!elfTouched) $("elfCheck").checked = elfState(grid).shown;
+    if (!elfTouched) $("elfCheck").checked = elfState().shown;
     $("reportNote").textContent = "Линия: " + LINE_SHORT[selLine].toLowerCase() + ". Если взяли другую, сначала нажмите на её значок у поля.";
     const sums = $("reportSums");
     sums.innerHTML = "";
@@ -711,7 +738,7 @@ th { font-weight: 600; }
       p_jack: groupChance(o => o.pay >= 1008),
       p_big: groupChance(o => o.pay >= 420 && o.pay < 1008),
       p_mid: groupChance(o => o.pay >= 100 && o.pay < 420),
-      elf_possible: elfState(grid).possible || $("elfCheck").checked,
+      elf_possible: elfState().possible || $("elfCheck").checked,
       elf_shown: $("elfCheck").checked
     };
     try {
