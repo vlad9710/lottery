@@ -791,6 +791,7 @@ th { font-weight: 600; }
         const { res } = await postRow(item.table, item.row);
         if (res === "later") { setTimeout(flushQueue, QUEUE_GAP); break; }
         writeQueue(readQueue().slice(1));
+        if (res === "ok" && item.table === "games") loadStats();
         if (readQueue().length) await new Promise(r => setTimeout(r, QUEUE_GAP));
       }
     } finally { flushing = false; }
@@ -865,21 +866,11 @@ th { font-weight: 600; }
       elf_kind: elfKind || elfDone(),
       elf_done: elfDone()
     };
-    const { res, msg = "" } = await postRowRetry("games", row);
-    if (res === "ok" || msg === "network") {
-      // Нет связи — сохраняем в очередь, отправится сама
-      if (res !== "ok") { enqueue("games", row); sentQueued = true; }
-      sent = true;
-      renderReport();
-      loadStats();
-      flushQueue();
-      return;
-    }
-    $("reportNote").textContent =
-      msg.includes("rate_limit") ? "Слишком часто. Подождите несколько секунд и нажмите ещё раз." :
-      msg.includes("bad_game") ? "Такой партии быть не может — проверьте цифры на поле." :
-      "Не получилось отправить. Попробуйте ещё раз.";
-    [...$("reportSums").children].forEach(b => b.disabled = false);
+    // Не ждём ответа сервера: кладём в очередь и сразу пишем «Записано» — очередь отправит сама
+    enqueue("games", row);
+    sent = true;
+    renderReport();
+    flushQueue();
   }
 
   const plural = (n, one, few, many) => {
@@ -892,19 +883,47 @@ th { font-weight: 600; }
   const share = (n, k) => k ? Math.round(100 * n / k) + "% (" + n + " из " + k + ")" : "—";
   const times = n => plural(n, "раз", "раза", "раз");
 
-  function bars(real, calc, n, total, max) {
+  // Ожидаемое число партий группы: сумма шансов от скрипта, а у старого скрипта — из процента
+  const expN = (st, g) => st[g + "_exp_n"] != null ? st[g + "_exp_n"] : st.games * st[g + "_exp"] / 100;
+  const expPct = (st, g) => {
+    const v = 100 * expN(st, g) / Math.max(st.games, 1);
+    return g === "jack" ? Math.round(10 * v) / 10 : Math.round(v);
+  };
+
+  function bars(real, calc, n, calcN, max) {
     const w = v => (100 * v / Math.max(max, 1)) + "%";
     return '<div class="cmp-bars">' +
       '<div class="cmp-bar real"><span class="track"><i style="width:' + w(real) + '"></i></span><span>выпало ' + String(real).replace(".", ",") + "% · " + times(n) + "</span></div>" +
-      '<div class="cmp-bar calc"><span class="track"><i style="width:' + w(calc) + '"></i></span><span>по расчёту ' + String(calc).replace(".", ",") + "% · ≈" + times(Math.round(total * calc / 100)) + "</span></div></div>";
+      '<div class="cmp-bar calc"><span class="track"><i style="width:' + w(calc) + '"></i></span><span>по расчёту ' + String(calc).replace(".", ",") + "% · ≈" + times(Math.round(calcN)) + "</span></div></div>";
+  }
+
+  // Последняя загруженная статистика хранится в браузере: при открытии страницы
+  // показываем её сразу, а свежую подгружаем в фоне и тихо подменяем
+  const STATS_KEY = "lotteryStats";
+  function readCachedStats() {
+    try { return JSON.parse(localStorage.getItem(STATS_KEY)); } catch (e) { return null; }
+  }
+  function saveCachedStats(data) {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(data)); } catch (e) { /* без хранилища просто не запоминаем */ }
   }
 
   async function loadStats(attempt = 1) {
     if (!statsOn) return;
+    if (attempt === 1) { const cached = readCachedStats(); if (cached) renderStats(cached); }
     try {
       const data = await callScript({ action: "stats", player: playerId() });
-      const st = data.stats;
-      if (!st || !st.games) return;
+      saveCachedStats(data);
+      renderStats(data);
+    } catch (e) {
+      // Связь оборвалась — тихо пробуем ещё раз
+      if (attempt < API_TRIES) setTimeout(() => loadStats(attempt + 1), 200);
+    }
+  }
+
+  function renderStats(data) {
+    const st = data && data.stats;
+    if (!st || !st.games) return;
+    {
       $("stats").hidden = false;
 
       // 1. Сколько в среднем даёт партия
@@ -915,13 +934,13 @@ th { font-weight: 600; }
         (st.started ? " Результат отметили в " + Math.min(100, Math.round(100 * st.reported / st.started)) + "% партий, дошедших до выбора линии." : "") + "</p>";
 
       // 2. Как часто выпадают крупные выигрыши — по факту и по расчёту
-      const barMax = Math.max(st.jack_pct, st.jack_exp, st.big_pct, st.big_exp, st.mid_pct, st.mid_exp, st.small_pct, st.small_exp);
+      const barMax = Math.max(st.jack_pct, st.big_pct, st.mid_pct, st.small_pct, ...["jack", "big", "mid", "small"].map(g => expPct(st, g)));
       $("stGroups").innerHTML = "<h3>Как часто что выпадает (из " + plural(st.games, "партии", "партий", "партий") + ")</h3>" +
         '<p class="st-text cmp-note">Тёмная полоса — сколько выпало на самом деле. Светлая — сколько должно было выпасть, если у всех раскладов цифр равные шансы.</p><div class="cmp">' +
-        '<div class="cmp-row"><span class="cmp-name">Джекпот<small>1008, 1680</small></span>' + bars(st.jack_pct, st.jack_exp, st.jack_n, st.games, barMax) + "</div>" +
-        '<div class="cmp-row"><span class="cmp-name">Крупный<small>420–840</small></span>' + bars(st.big_pct, st.big_exp, st.big_n, st.games, barMax) + "</div>" +
-        '<div class="cmp-row"><span class="cmp-name">Средний<small>105–280</small></span>' + bars(st.mid_pct, st.mid_exp, st.mid_n, st.games, barMax) + "</div>" +
-        '<div class="cmp-row"><span class="cmp-name">Мелкий<small>34–84</small></span>' + bars(st.small_pct, st.small_exp, st.small_n, st.games, barMax) + "</div></div>";
+        '<div class="cmp-row"><span class="cmp-name">Джекпот<small>1008, 1680</small></span>' + bars(st.jack_pct, expPct(st, "jack"), st.jack_n, expN(st, "jack"), barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">Крупный<small>420–840</small></span>' + bars(st.big_pct, expPct(st, "big"), st.big_n, expN(st, "big"), barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">Средний<small>105–280</small></span>' + bars(st.mid_pct, expPct(st, "mid"), st.mid_n, expN(st, "mid"), barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">Мелкий<small>34–84</small></span>' + bars(st.small_pct, expPct(st, "small"), st.small_n, expN(st, "small"), barMax) + "</div></div>";
 
       // 3. Фея
       $("stElf").hidden = !st.elf_chances;
@@ -945,9 +964,6 @@ th { font-weight: 600; }
           '<p class="st-text">В среднем <b>' + fmt(me.avg_score) + "</b> за партию, по расчёту ожидалось <b>" + fmt(me.avg_expected) + "</b>." +
           (me.elf_chances ? " Фея: <b>" + me.elf_n + " из " + me.elf_chances + "</b>." : "") + "</p>";
       }
-    } catch (e) {
-      // Связь оборвалась — тихо пробуем ещё раз
-      if (attempt < API_TRIES) setTimeout(() => loadStats(attempt + 1), 200);
     }
   }
 
