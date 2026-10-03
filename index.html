@@ -747,6 +747,18 @@ th { font-weight: 600; }
     } finally { clearTimeout(timer); }
   }
 
+  // Очередь: записи, которые не дошли до базы из-за обрыва связи. Хранится в браузере
+  // и отправляется по одной, когда связь появляется (база принимает не чаще раза в 15 секунд)
+  const QUEUE_KEY = "lotteryQueue";
+  const QUEUE_GAP = 16000;
+  function readQueue() {
+    try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch (e) { return []; }
+  }
+  function writeQueue(q) {
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch (e) { /* без хранилища очередь не работает */ }
+  }
+  function enqueue(table, row) { writeQueue([...readQueue(), { table, row }]); }
+
   // Отправка одной записи: "ok" — записана (или уже была), "bad" — скрипт её отверг, "later" — повторить позже
   async function postRow(table, row) {
     let out;
