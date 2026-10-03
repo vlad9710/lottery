@@ -683,7 +683,7 @@ th { font-weight: 600; }
   }
 
   $("reset").addEventListener("click", () => {
-    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; update();
+    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; update();
   });
 
   // ---------- Статистика ----------
@@ -692,6 +692,7 @@ th { font-weight: 600; }
   const SUPABASE_KEY = "sb_publishable_hjJMEKolOtE_h11lohheuw_Z8l6GQAf";
   const statsOn = Boolean(SUPABASE_URL && SUPABASE_KEY);
   let sent = false;
+  let sentQueued = false;  // результат лёг в очередь, а не сразу в базу
   // Id партии: связывает «дошёл до выбора линии» и «отметил результат»
   const newGameId = () => (crypto.randomUUID ? crypto.randomUUID() :
     "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (c ^ Math.random() * 16 >> c / 4).toString(16)));
@@ -724,12 +725,53 @@ th { font-weight: 600; }
     }).finally(() => clearTimeout(timer));
   }
 
+  // Очередь: записи, которые не дошли до базы из-за обрыва связи. Хранится в браузере
+  // и отправляется по одной, когда связь появляется (база принимает не чаще раза в 15 секунд)
+  const QUEUE_KEY = "lotteryQueue";
+  const QUEUE_GAP = 16000;
+  function readQueue() {
+    try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch (e) { return []; }
+  }
+  function writeQueue(q) {
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch (e) { /* без хранилища очередь не работает */ }
+  }
+  function enqueue(table, row) { writeQueue([...readQueue(), { table, row }]); }
+
+  // Отправка одной записи: "ok" — записана (или уже была), "bad" — база её отвергла, "later" — повторить позже
+  async function postRow(table, row) {
+    let r;
+    try {
+      r = await api(table, { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
+    } catch (e) { return { res: "later", msg: "network" }; }
+    if (r.ok) return { res: "ok" };
+    const msg = await r.text();
+    if (msg.includes("duplicate")) return { res: "ok", msg };
+    if (msg.includes("bad_game")) return { res: "bad", msg };
+    return { res: "later", msg };
+  }
+
+  let flushing = false;
+  async function flushQueue() {
+    if (!statsOn || flushing) return;
+    flushing = true;
+    try {
+      while (readQueue().length) {
+        const [item] = readQueue();
+        const { res } = await postRow(item.table, item.row);
+        if (res === "later") { setTimeout(flushQueue, QUEUE_GAP); break; }
+        writeQueue(readQueue().slice(1));
+        if (readQueue().length) await new Promise(r => setTimeout(r, QUEUE_GAP));
+      }
+    } finally { flushing = false; }
+  }
+
   // Первый этап: партия дошла до выбора линии (результата ещё нет)
-  function sendStart() {
+  async function sendStart() {
     if (!statsOn || startSent) return;
     startSent = true;
-    api("starts", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ game_id: gameId, player: playerId() }) })
-      .catch(() => { /* статистика необязательна */ });
+    const row = { game_id: gameId, player: playerId() };
+    const { res, msg } = await postRow("starts", row);
+    if (res === "later" && msg === "network") enqueue("starts", row);
   }
 
   // Кнопки с возможными суммами выбранной линии
@@ -740,7 +782,9 @@ th { font-weight: 600; }
     if (sent) {
       $("reportNote").textContent = "";
       $("elfCheckWrap").hidden = true;
-      $("reportSums").innerHTML = '<p class="report-done">Записано, спасибо! Для новой партии нажмите «Начать заново».</p>';
+      $("reportSums").innerHTML = '<p class="report-done">' + (sentQueued
+        ? "Сохранено. Сервер сейчас не отвечает — партия отправится сама, когда появится связь."
+        : "Записано, спасибо!") + " Для новой партии нажмите «Начать заново».</p>";
       return;
     }
     // Вопрос про фею — только когда она могла сработать или джекпот уже на поле
@@ -788,21 +832,21 @@ th { font-weight: 600; }
       elf_shown: $("elfCheck").checked,
       elf_moments: elfState().possible || $("elfCheck").checked ? 1 : 0
     };
-    try {
-      const r = await api("games", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
-      if (!r.ok) throw new Error(await r.text());
+    const { res, msg = "" } = await postRow("games", row);
+    if (res === "ok" || msg === "network") {
+      // Нет связи — сохраняем в очередь, отправится сама
+      if (res !== "ok") { enqueue("games", row); sentQueued = true; }
       sent = true;
       renderReport();
       loadStats();
-    } catch (e) {
-      const msg = String(e.message);
-      $("reportNote").textContent =
-        msg.includes("rate_limit") ? "Слишком часто. Подождите несколько секунд и нажмите ещё раз." :
-        msg.includes("bad_game") ? "Такой партии быть не может — проверьте цифры на поле." :
-        msg.includes("duplicate") ? "Эта партия уже записана. Для новой нажмите «Начать заново»." :
-        "Не получилось отправить. Проверьте интернет и попробуйте ещё раз.";
-      [...$("reportSums").children].forEach(b => b.disabled = false);
+      flushQueue();
+      return;
     }
+    $("reportNote").textContent =
+      msg.includes("rate_limit") ? "Слишком часто. Подождите несколько секунд и нажмите ещё раз." :
+      msg.includes("bad_game") ? "Такой партии быть не может — проверьте цифры на поле." :
+      "Не получилось отправить. Попробуйте ещё раз.";
+    [...$("reportSums").children].forEach(b => b.disabled = false);
   }
 
   const plural = (n, one, few, many) => {
@@ -820,7 +864,7 @@ th { font-weight: 600; }
       '<div class="cmp-bar calc"><i style="width:' + (60 * calc / max) + '%"></i><span>по расчёту ' + String(calc).replace(".", ",") + "% · ≈" + times(Math.round(total * calc / 100)) + "</span></div></div>";
   }
 
-  async function loadStats() {
+  async function loadStats(attempt = 1) {
     if (!statsOn) return;
     try {
       const [sr, mr] = await Promise.all([
@@ -865,10 +909,13 @@ th { font-weight: 600; }
           '<p class="st-text">В среднем <b>' + fmt(me.avg_score) + "</b> за партию, по расчёту ожидалось <b>" + fmt(me.avg_expected) + "</b>." +
           (me.elf_chances ? " Фея: <b>" + me.elf_n + " из " + me.elf_chances + "</b>." : "") + "</p>";
       }
-    } catch (e) { /* статистика необязательна */ }
+    } catch (e) {
+      // Связь оборвалась — тихо пробуем ещё раз
+      if (attempt < 3) setTimeout(() => loadStats(attempt + 1), 2500);
+    }
   }
 
-  buildBoard(); buildPad(); loadStats(); hint(HINT_IDLE); update();
+  buildBoard(); buildPad(); loadStats(); flushQueue(); hint(HINT_IDLE); update();
 })();
 </script>
 </body>
