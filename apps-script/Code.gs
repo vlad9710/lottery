@@ -101,6 +101,7 @@ function addGame(r) {
     if (r.game_id) cache.put("gid:" + r.game_id, "1", 21600);
     cache.put("g:" + r.player, "1", GAME_GAP);
     cache.remove("stats");
+    cache.remove("me:" + r.player);
   } finally { lock.releaseLock(); }
   return { ok: true };
 }
@@ -147,18 +148,25 @@ function canMake(free, k, need) {
 }
 
 // ---------- Статистика ----------
+// Общая сводка и личная статистика лежат в кэше по минуте; если обе есть — таблицу не читаем.
+// После записи партии кэш сбрасывается (см. addGame)
 function getStats(player) {
   const cache = CacheService.getScriptCache();
+  const fromCache = k => { const v = cache.get(k); return v ? JSON.parse(v) : null; };
+  let stats = fromCache("stats");
+  let me = player ? fromCache("me:" + player) : null;
+  if (stats && (!player || me)) return { stats, me };
   const rows = readGames();
-  let stats;
-  const cached = cache.get("stats");
-  if (cached) stats = JSON.parse(cached);
-  else {
+  if (!stats) {
     stats = summarize(rows);
     stats.started = Math.max(0, sheet(STARTS, START_COLS).getLastRow() - 1);
     cache.put("stats", JSON.stringify(stats), STATS_TTL);
   }
-  return { stats, me: player ? summarizeMe(rows.filter(r => String(r.player) === player)) : null };
+  if (player && !me) {
+    me = summarizeMe(rows.filter(r => String(r.player) === player));
+    cache.put("me:" + player, JSON.stringify(me), STATS_TTL);
+  }
+  return { stats, me };
 }
 
 // Партии с листа; столбцы — по заголовкам (подходит и для импорта из Supabase)
@@ -177,6 +185,7 @@ function readGames() {
 
 const avg = (rows, f) => rows.length ? rows.reduce((a, r) => a + f(r), 0) / rows.length : 0;
 const cnt = (rows, f) => rows.filter(f).length;
+const sum2 = (rows, f) => Math.round(100 * rows.reduce((a, r) => a + f(r), 0)) / 100;
 const pct = (rows, f) => Math.round(100 * avg(rows, r => f(r) ? 1 : 0));
 const pct1 = v => Math.round(1000 * v) / 10;
 const isTrue = v => v === true || String(v).toLowerCase() === "true";
@@ -197,6 +206,11 @@ function summarize(rows) {
     big_exp: Math.round(100 * avg(rows, r => Number(r.p_big) || 0)),
     mid_exp: Math.round(100 * avg(rows, r => Number(r.p_mid) || 0)),
     small_exp: Math.round(100 * avg(rows, r => 1 - (Number(r.p_jack) || 0) - (Number(r.p_big) || 0) - (Number(r.p_mid) || 0))),
+    // сколько партий каждой группы должно было выпасть по расчёту — сумма шансов, без округления
+    jack_exp_n: sum2(rows, r => Number(r.p_jack) || 0),
+    big_exp_n: sum2(rows, r => Number(r.p_big) || 0),
+    mid_exp_n: sum2(rows, r => Number(r.p_mid) || 0),
+    small_exp_n: sum2(rows, r => 1 - (Number(r.p_jack) || 0) - (Number(r.p_big) || 0) - (Number(r.p_mid) || 0)),
     elf_chances: rows.reduce((a, r) => a + moments(r), 0),
     elf_n: cnt(rows, r => isTrue(r.elf_shown)),
     fill_chances: cnt(rows, r => kind(r) === "fill" || kind(r) === "both"),
