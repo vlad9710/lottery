@@ -222,6 +222,7 @@ th { font-weight: 600; }
   .st-big { font: 700 20px/1.25 var(--display); margin: 0 0 6px; }
   .st-text { margin: 0; font-size: 15px; color: var(--muted); }
   .st-text b { color: var(--ink); }
+  .elf-split { margin-top: 8px; font-size: 14px; }
   .st-foot { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
   .cmp-note { font-size: 13px; margin: 0 0 10px; }
   .cmp { display: grid; gap: 10px; margin-top: 4px; font-size: 14px; }
@@ -366,6 +367,7 @@ th { font-weight: 600; }
   // клетку или заменяет ею открытую неподходящую.
   const ELF_CHANCE = 0.2;
   let elfChance = false; // в этой партии фея могла сработать
+  let elfKind = null;    // как могла: "fill" — поставить в закрытую клетку, "replace" — заменить открытую, "both"
 
   function elfCandidates(g) {
     const out = [];
@@ -594,7 +596,22 @@ th { font-weight: 600; }
 
   // Все попытки израсходованы: запоминаем, могла ли сработать фея
   function noteElfChance(allOpened) {
-    if (allOpened && elfCandidates(grid).length) elfChance = true;
+    if (!allOpened) return;
+    const c = elfCandidates(grid);
+    if (!c.length) return;
+    elfChance = true;
+    const fill = c.some(x => !x.prev), repl = c.some(x => x.prev);
+    const k = fill && repl ? "both" : fill ? "fill" : "replace";
+    elfKind = !elfKind || elfKind === k ? k : "both";
+  }
+
+  // Что сделала фея, если игрок отметил, что она появилась. Её цифра уже может быть на поле:
+  // пять цифр — встала в закрытую клетку; четыре и линия собрана — заменила открытую
+  function elfDone() {
+    if (!$("elfCheck").checked) return null;
+    if (grid.filter(Boolean).length === 5) return "fill";
+    const full = LINES.some(l => [[1,2,3],[7,8,9]].some(S => l.every(i => S.includes(grid[i]))));
+    return full ? "replace" : "fill";
   }
 
   // Есть гарантированная линия, а советуемая чаще даёт меньше неё — предупреждаем
@@ -683,7 +700,7 @@ th { font-weight: 600; }
   }
 
   $("reset").addEventListener("click", () => {
-    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; update();
+    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; elfKind = null; update();
   });
 
   // ---------- Статистика ----------
@@ -842,7 +859,9 @@ th { font-weight: 600; }
       p_mid: groupChance(o => o.pay >= 100 && o.pay < 420),
       elf_possible: elfState().possible || $("elfCheck").checked,
       elf_shown: $("elfCheck").checked,
-      elf_moments: elfState().possible || $("elfCheck").checked ? 1 : 0
+      elf_moments: elfState().possible || $("elfCheck").checked ? 1 : 0,
+      elf_kind: elfKind || elfDone(),
+      elf_done: elfDone()
     };
     const { res, msg = "" } = await postRowRetry("games", row);
     if (res === "ok" || msg === "network") {
@@ -867,6 +886,8 @@ th { font-weight: 600; }
   };
   const games = n => plural(n, "партия", "партии", "партий");
 
+  // «38% (3 из 8)» или прочерк, если случаев ещё не было
+  const share = (n, k) => k ? Math.round(100 * n / k) + "% (" + n + " из " + k + ")" : "—";
   const times = n => plural(n, "раз", "раза", "раз");
 
   function bars(real, calc, n, total) {
@@ -909,6 +930,10 @@ th { font-weight: 600; }
         $("stElf").innerHTML = "<h3>Фея</h3>" +
           '<p class="st-big">Появлялась в ' + Math.round(100 * st.elf_n / st.elf_chances) + "% случаев</p>" +
           '<p class="st-text"><b>' + st.elf_n + "</b> из " + st.elf_chances + ".</p>" +
+          (st.fill_chances || st.repl_chances
+            ? '<p class="st-text elf-split">Поставила цифру в закрытую клетку: <b>' + share(st.fill_n, st.fill_chances) +
+              "</b><br>Заменила открытую цифру: <b>" + share(st.repl_n, st.repl_chances) + "</b></p>"
+            : "") +
           '<p class="st-foot">Случай — партия, где фея могла появиться: после всех открытий в линии две цифры из 1-2-3 или 7-8-9, а третьей нигде нет.</p>';
       }
 
