@@ -241,18 +241,23 @@ th { font-weight: 600; }
   .cmp-bar.real span { color: var(--ink); }
 
 
+  .site-header { justify-content: flex-end; align-items: center; }
+  .lang { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--paper-deep); }
+  .lang button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--muted); border-radius: 999px; padding: 4px 10px; font: 600 13px var(--text); cursor: pointer; }
+  .lang .flag { width: 18px; height: 12px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.15); flex: none; }
+  .lang button.on { background: var(--ink); color: #fff; }
 </style>
 </head>
 <body>
 <header class="site-header">
-  <a class="site-name" href="./">Игровые разборы</a>
+    <div class="lang" role="group" aria-label="Язык / Language"><button type="button" data-lang="ru"><svg class="flag" viewBox="0 0 9 6" aria-hidden="true"><rect width="9" height="2" fill="#fff"/><rect y="2" width="9" height="2" fill="#0039A6"/><rect y="4" width="9" height="2" fill="#D52B1E"/></svg>RU</button><button type="button" data-lang="en"><svg class="flag" viewBox="0 0 60 30" aria-hidden="true"><clipPath id="gbc"><path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z"/></clipPath><path d="M0,0v30h60v-30z" fill="#012169"/><path d="M0,0 60,30M60,0 0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 60,30M60,0 0,30" clip-path="url(#gbc)" stroke="#C8102E" stroke-width="4"/><path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></svg>EN</button></div>
 </header>
 
 <main>
-  <h1>Моментальная лотерея</h1>
-  <p class="lede">Отметьте цифры, которые видите в игре. Калькулятор подскажет, какую клетку открыть, а в конце — какую линию выбрать.</p>
+  <h1 data-i18n="h1">Моментальная лотерея</h1>
+  <p class="lede" data-i18n="lede">Отметьте цифры, которые видите в игре. Калькулятор подскажет, какую клетку открыть, а в конце — какую линию выбрать.</p>
 
-  <section class="calc" aria-label="Калькулятор хода">
+  <section class="calc" data-i18n-aria="calcAria" aria-label="Калькулятор хода">
     <div>
       <div class="board" id="board"></div>
       <div class="pad" id="pad" hidden></div>
@@ -265,31 +270,31 @@ th { font-weight: 600; }
       <div class="guard" id="guard" hidden>
         <p class="guard-title" id="guardTitle"></p>
         <p class="guard-text" id="guardText"></p>
-        <button class="btn" id="guardBtn" type="button">Взять гарантию</button>
+        <button class="btn" id="guardBtn" type="button" data-i18n="guardBtn">Взять гарантию</button>
       </div>
       <div class="report" id="report" hidden>
-        <p class="report-q">Какая сумма выпала? Нажмите на неё</p>
+        <p class="report-q" data-i18n="reportQ">Какая сумма выпала? Нажмите на неё</p>
         <p class="report-note" id="reportNote"></p>
         <div class="elf-q" id="elfCheckWrap" hidden>
           <p class="elf-q-text" id="elfQText"></p>
-          <div class="seg"><button type="button" id="elfYesBtn">Появилась</button><button type="button" id="elfNoBtn">Не появилась</button></div>
-          <p class="elf-hint" id="elfHint">Сначала отметьте, появилась ли фея, — потом выберите сумму.</p>
+          <div class="seg"><button type="button" id="elfYesBtn" data-i18n="elfYes">Появилась</button><button type="button" id="elfNoBtn" data-i18n="elfNo">Не появилась</button></div>
+          <p class="elf-hint" id="elfHint" data-i18n="elfHint">Сначала отметьте, появилась ли фея, — потом выберите сумму.</p>
         </div>
         <input type="checkbox" id="elfCheck" hidden>
         <div class="sums" id="reportSums"></div>
       </div>
-      <div class="actions"><button class="btn" id="reset" type="button">Начать заново</button></div>
+      <div class="actions"><button class="btn" id="reset" type="button" data-i18n="reset">Начать заново</button></div>
     </div>
   </section>
 
-  <section class="all-lines" id="allLines" hidden aria-label="Все линии">
-    <h2>Что может дать каждая линия</h2>
-    <p class="lines-note">Слева — сумма трёх цифр линии, справа — сколько очков она даёт. Сверху — средний выигрыш линии. Золотая рамка — лучшая линия.</p>
+  <section class="all-lines" id="allLines" hidden data-i18n-aria="allLinesAria" aria-label="Все линии">
+    <h2 data-i18n="allLinesH">Что может дать каждая линия</h2>
+    <p class="lines-note" data-i18n="linesNote">Слева — сумма трёх цифр линии, справа — сколько очков она даёт. Сверху — средний выигрыш линии. Золотая рамка — лучшая линия.</p>
     <div class="lines-grid" id="linesGrid"></div>
   </section>
 
-  <section class="stats" id="stats" hidden aria-label="Статистика игроков">
-    <h2>Статистика игроков</h2>
+  <section class="stats" id="stats" hidden data-i18n-aria="statsH" aria-label="Статистика игроков">
+    <h2 data-i18n="statsH">Статистика игроков</h2>
     <div class="st-grid">
       <div class="st-card" id="stFair"></div>
       <div class="st-card" id="stGroups"></div>
@@ -304,9 +309,180 @@ th { font-weight: 600; }
 (() => {
   const DEFAULT_PAY = {6:1680,7:84,8:630,9:280,10:42,11:34,12:180,13:120,14:53,15:105,16:53,17:144,18:48,19:202,20:105,21:51,22:420,23:840,24:1008};
   const LINES = [[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6],[6,7,8],[3,4,5],[0,1,2]];
-  const LINE_NAMES = ["левую колонку","центральную колонку","правую колонку","диагональ ↘","диагональ ↙","нижний ряд","средний ряд","верхний ряд"];
-  const LINE_SHORT = ["Левая колонка","Центральная колонка","Правая колонка","Диагональ ↘","Диагональ ↙","Нижний ряд","Средний ряд","Верхний ряд"];
-  const CELL_NAMES = ["верхний левый угол","верхний центр","верхний правый угол","центр слева","центр","центр справа","нижний левый угол","нижний центр","нижний правый угол"];
+  // ---------- Языки: все тексты сайта на русском и английском ----------
+  const LANG_KEY = "lotteryLang";
+  let lang = (() => {
+    try { const v = localStorage.getItem(LANG_KEY); if (v === "ru" || v === "en") return v; } catch (e) { /* нет хранилища */ }
+    return /^(ru|uk|be|kk)/i.test(navigator.language || "") ? "ru" : "en";
+  })();
+  const ruPlural = (n, one, few, many) => {
+    const a = n % 10, b = n % 100;
+    return n + " " + (a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many);
+  };
+  const I18N = {
+    ru: {
+      title: "Моментальная лотерея: калькулятор",
+      h1: "Моментальная лотерея",
+      lede: "Отметьте цифры, которые видите в игре. Калькулятор подскажет, какую клетку открыть, а в конце — какую линию выбрать.",
+      calcAria: "Калькулятор хода",
+      guardBtn: "Взять гарантию",
+      reportQ: "Какая сумма выпала? Нажмите на неё",
+      elfYes: "Появилась",
+      elfNo: "Не появилась",
+      elfHint: "Сначала отметьте, появилась ли фея, — потом выберите сумму.",
+      reset: "Начать заново",
+      allLinesAria: "Все линии",
+      allLinesH: "Что может дать каждая линия",
+      linesNote: "Слева — сумма трёх цифр линии, справа — сколько очков она даёт. Сверху — средний выигрыш линии. Золотая рамка — лучшая линия.",
+      statsH: "Статистика игроков",
+      lineAcc: ["левую колонку","центральную колонку","правую колонку","диагональ ↘","диагональ ↙","нижний ряд","средний ряд","верхний ряд"],
+      lineShort: ["Левая колонка","Центральная колонка","Правая колонка","Диагональ ↘","Диагональ ↙","Нижний ряд","Средний ряд","Верхний ряд"],
+      cellNames: ["верхний левый угол","верхний центр","верхний правый угол","центр слева","центр","центр справа","нижний левый угол","нижний центр","нижний правый угол"],
+      erase: "Стереть",
+      hintIdle: 'Нажмите на клетку, чтобы вписать цифру.<span class="kbd-only"> Или просто введите цифру с клавиатуры — она попадёт в золотую клетку. <kbd>←↑→↓</kbd> выбор клетки, <kbd>Backspace</kbd> стереть.</span>',
+      hintCell: c => "Клетка: " + c + ". Введите цифру или выберите ниже.",
+      hintDup: d => "Цифра " + d + " уже стоит в поле. Каждая цифра встречается один раз.",
+      hintPickFirst: "Сначала выберите клетку: нажмите на неё или используйте стрелки.",
+      ariaBest: ", лучший ход",
+      ariaEmpty: ", пусто",
+      ariaLine: (name, sure, v) => name + ": " + (sure ? "" : "в среднем ") + v + " очков",
+      colSum: "сумма", colPts: "очки",
+      prizeOne: (p, jack, pay) => "с шансом " + p + " там " + (jack ? "джекпот " : "") + pay,
+      prizeMany: list => "с шансом " + list,
+      guardTitle: (line, v) => "Можно взять гарантию: " + line.toLowerCase() + " — " + ruPlural(v, "очко", "очка", "очков") + ".",
+      guardText: (best, n10, val, prize, avg) => best + " в " + n10 + " из 10 случаев даст меньше " + val + ", зато " + prize + ". В среднем — " + avg + ".",
+      stepStart: "Начало",
+      verdictStart: "Впишите стартовую цифру",
+      subStart: "Нажмите на клетку, где в игре открыта цифра, и введите её.",
+      step: n => "Ход " + n + " из 3",
+      stepDone: "Все ходы сделаны",
+      calculating: "Считаю…",
+      stepReady: "Готово",
+      verdictStop: "Дальше можно не открывать",
+      subStop: (line, v) => "Берите " + line + ": это гарантированные " + v + " очков, больше уже ничего не даст.",
+      verdictOpen: c => "Откройте " + c,
+      subOpen: "Она подсвечена золотым. Впишите цифру, которая там откроется.",
+      verdictTake: line => "Берите " + line,
+      subSure: v => "Это гарантированные " + v + " очков.",
+      subAvg: v => "В среднем около " + v + " очков.",
+      doneQueued: "Сохранено. Сервер сейчас не отвечает — партия отправится сама, когда появится связь.",
+      doneOk: "Записано, спасибо!",
+      doneNext: " Для новой партии нажмите «Начать заново».",
+      elfQPossible: "Фея могла появиться в этой партии:",
+      elfQJack: "Линия собрана. Фея помогала?",
+      reportNote: line => "Линия: " + line.toLowerCase() + ". Если взяли другую, сначала нажмите на её значок у поля.",
+      sumBtn: pay => pay + " очков",
+      gamesN: n => ruPlural(n, "партия", "партии", "партий"),
+      gamesDat: n => ruPlural(n, "партии", "партиям", "партиям"),
+      gamesGen: n => ruPlural(n, "партии", "партий", "партий"),
+      times: n => ruPlural(n, "раз", "раза", "раз"),
+      share: (n, k) => k ? Math.round(100 * n / k) + "% (" + n + " из " + k + ")" : "—",
+      dec: v => String(v).replace(".", ","),
+      barReal: (p, n) => "выпало " + p + "% · " + n,
+      barCalc: (p, n) => "по расчёту " + p + "% · ≈" + n,
+      fairH: "Средний выигрыш игроков",
+      fairBig: v => v + " очков за партию",
+      fairBased: g => "Посчитано по " + g + ".",
+      fairReported: p => " Результат отметили в " + p + "% партий, дошедших до выбора линии.",
+      groupsH: g => "Как часто что выпадает (из " + g + ")",
+      groupsNote: "Тёмная полоса — сколько выпало на самом деле. Светлая — сколько должно было выпасть, если у всех раскладов цифр равные шансы.",
+      gJack: "Джекпот", gBig: "Крупный", gMid: "Средний", gSmall: "Мелкий",
+      elfH: "Фея",
+      elfBig: p => "Появлялась в " + p + "% случаев",
+      elfOf: (n, k) => "<b>" + n + "</b> из " + k + ".",
+      elfFill: "Поставила цифру в закрытую клетку:",
+      elfRepl: "Заменила открытую цифру:",
+      elfFoot: "Случай — партия, где фея могла появиться: после всех открытий в линии две цифры из 1-2-3 или 7-8-9, а третьей нигде нет.",
+      mineH: "Ваши партии",
+      mineBig: (v, g) => v + " очков за " + g,
+      mineText: (a, e) => "В среднем <b>" + a + "</b> за партию, по расчёту ожидалось <b>" + e + "</b>.",
+      mineElf: (n, k) => " Фея: <b>" + n + " из " + k + "</b>.",
+      locale: "ru-RU"
+    },
+    en: {
+      title: "Celebration Scratchcard: calculator",
+      h1: "Celebration Scratchcard",
+      lede: "Enter the numbers you see in the game. The calculator tells you which tile to open and, at the end, which line to pick.",
+      calcAria: "Move calculator",
+      guardBtn: "Take the sure thing",
+      reportQ: "Which sum came up? Tap it",
+      elfYes: "It appeared",
+      elfNo: "It didn't",
+      elfHint: "First mark whether the Elf's Blessing appeared, then pick the sum.",
+      reset: "Start over",
+      allLinesAria: "All lines",
+      allLinesH: "What each line can pay",
+      linesNote: "Left: the sum of the line's three numbers; right: the points it pays. On top: the line's average win. Gold frame: the best line.",
+      statsH: "Player statistics",
+      lineAcc: ["the left column","the middle column","the right column","diagonal ↘","diagonal ↙","the bottom row","the middle row","the top row"],
+      lineShort: ["Left column","Middle column","Right column","Diagonal ↘","Diagonal ↙","Bottom row","Middle row","Top row"],
+      cellNames: ["the top-left corner","the top middle","the top-right corner","the middle left","the center","the middle right","the bottom-left corner","the bottom middle","the bottom-right corner"],
+      erase: "Erase",
+      hintIdle: 'Tap a tile to enter a number.<span class="kbd-only"> Or just type a number — it goes into the gold tile. <kbd>←↑→↓</kbd> pick a tile, <kbd>Backspace</kbd> erase.</span>',
+      hintCell: c => "Tile: " + c + ". Type a number or pick one below.",
+      hintDup: d => d + " is already on the board. Each number appears only once.",
+      hintPickFirst: "Pick a tile first: tap it or use the arrow keys.",
+      ariaBest: ", best move",
+      ariaEmpty: ", empty",
+      ariaLine: (name, sure, v) => name + ": " + (sure ? "" : "on average ") + v + " points",
+      colSum: "sum", colPts: "points",
+      prizeOne: (p, jack, pay) => "it has a " + p + " chance of " + (jack ? "the jackpot, " : "") + pay,
+      prizeMany: list => "it has a chance of " + list,
+      guardTitle: (line, v) => "You can take a sure thing: " + line.toLowerCase() + ", " + v + " points.",
+      guardText: (best, n10, val, prize, avg) => best + " pays less than " + val + " in " + n10 + " out of 10 cases, but " + prize + ". Average: " + avg + ".",
+      stepStart: "Start",
+      verdictStart: "Enter the starting number",
+      subStart: "Tap the tile where the game shows a number and enter it.",
+      step: n => "Move " + n + " of 3",
+      stepDone: "All moves done",
+      calculating: "Calculating…",
+      stepReady: "Done",
+      verdictStop: "No need to open more",
+      subStop: (line, v) => "Take " + line + ": a guaranteed " + v + " points, nothing can beat it.",
+      verdictOpen: c => "Open " + c,
+      subOpen: "It's highlighted in gold. Enter the number that shows up there.",
+      verdictTake: line => "Take " + line,
+      subSure: v => "That's a guaranteed " + v + " points.",
+      subAvg: v => "About " + v + " points on average.",
+      doneQueued: "Saved. The server isn't responding — the game will be sent automatically once it's back.",
+      doneOk: "Recorded, thanks!",
+      doneNext: " Press “Start over” for a new game.",
+      elfQPossible: "The Elf's Blessing could have appeared this game:",
+      elfQJack: "Line complete. Did the Elf's Blessing help?",
+      reportNote: line => "Line: " + line.toLowerCase() + ". If you took another one, tap its badge next to the board first.",
+      sumBtn: pay => pay + " pts",
+      gamesN: n => n + (n === 1 ? " game" : " games"),
+      gamesDat: n => n + (n === 1 ? " game" : " games"),
+      gamesGen: n => n + (n === 1 ? " game" : " games"),
+      times: n => n + (n === 1 ? " time" : " times"),
+      share: (n, k) => k ? Math.round(100 * n / k) + "% (" + n + " of " + k + ")" : "—",
+      dec: v => String(v),
+      barReal: (p, n) => "came up " + p + "% · " + n,
+      barCalc: (p, n) => "expected " + p + "% · ≈" + n,
+      fairH: "Average player win",
+      fairBig: v => v + " points per game",
+      fairBased: g => "Based on " + g + ".",
+      fairReported: p => " Results were recorded in " + p + "% of games that reached the line choice.",
+      groupsH: g => "How often each prize comes up (out of " + g + ")",
+      groupsNote: "Dark bar: how often it actually came up. Light bar: how often it should come up if every layout of numbers is equally likely.",
+      gJack: "Jackpot", gBig: "Big", gMid: "Medium", gSmall: "Small",
+      elfH: "Elf's Blessing",
+      elfBig: p => "Appeared in " + p + "% of cases",
+      elfOf: (n, k) => "<b>" + n + "</b> of " + k + ".",
+      elfFill: "Filled a closed tile:",
+      elfRepl: "Replaced an open number:",
+      elfFoot: "A case is a game where the Elf's Blessing could appear: after all openings, a line has two numbers from 1-2-3 or 7-8-9 and the third is nowhere on the board.",
+      mineH: "Your games",
+      mineBig: (v, g) => v + " points in " + g,
+      mineText: (a, e) => "On average <b>" + a + "</b> per game, expected <b>" + e + "</b>.",
+      mineElf: (n, k) => " Elf's Blessing: <b>" + n + " of " + k + "</b>.",
+      locale: "en-US"
+    }
+  };
+  const t = (k, ...a) => { const v = I18N[lang][k]; return typeof v === "function" ? v(...a) : v; };
+  const LINE_NAMES = () => t("lineAcc");
+  const LINE_SHORT = () => t("lineShort");
+  const CELL_NAMES = () => t("cellNames");
 
   let pay = { ...DEFAULT_PAY };
   let grid = Array(9).fill(0);
@@ -430,7 +606,7 @@ th { font-weight: 600; }
     return out;
   }
 
-  const fmt = v => Math.round(v).toLocaleString("ru-RU");
+  const fmt = v => Math.round(v).toLocaleString(t("locale"));
 
   // ---------- Отрисовка калькулятора ----------
   const board = $("board"), pad = $("pad");
@@ -481,12 +657,12 @@ th { font-weight: 600; }
       pad.appendChild(b);
     }
     const c = document.createElement("button");
-    c.type = "button"; c.className = "clear"; c.textContent = "Стереть";
+    c.type = "button"; c.className = "clear"; c.textContent = t("erase");
     c.addEventListener("click", () => setDigit(picked, 0));
     pad.appendChild(c);
   }
 
-  const HINT_IDLE = 'Нажмите на клетку, чтобы вписать цифру.<span class="kbd-only"> Или просто введите цифру с клавиатуры — она попадёт в золотую клетку. <kbd>←↑→↓</kbd> выбор клетки, <kbd>Backspace</kbd> стереть.</span>';
+  const HINT_IDLE = () => t("hintIdle");
 
   function hint(html) { $("padHint").innerHTML = html; }
 
@@ -498,8 +674,8 @@ th { font-weight: 600; }
 
   function showPad() {
     pad.hidden = picked < 0;
-    if (picked < 0) { hint(HINT_IDLE); return; }
-    hint("Клетка: " + CELL_NAMES[picked] + ". Введите цифру или выберите ниже.");
+    if (picked < 0) { hint(HINT_IDLE()); return; }
+    hint(t("hintCell", CELL_NAMES()[picked]));
     [...pad.children].forEach((b, idx) => {
       if (idx < 9) b.disabled = grid.includes(idx + 1) && grid[picked] !== idx + 1;
     });
@@ -508,12 +684,12 @@ th { font-weight: 600; }
   function setDigit(i, d) {
     if (i < 0) return;
     if (d && grid.includes(d) && grid[i] !== d) {
-      hint("Цифра " + d + " уже стоит в поле. Каждая цифра встречается один раз.");
+      hint(t("hintDup", d));
       return;
     }
     grid[i] = d;
     picked = -1; pad.hidden = true;
-    hint(HINT_IDLE);
+    hint(HINT_IDLE());
     update();
   }
 
@@ -524,7 +700,7 @@ th { font-weight: 600; }
     const k = e.key;
     if (/^[1-9]$/.test(k)) {
       const target = picked >= 0 ? picked : lastBest;
-      if (target < 0) { hint("Сначала выберите клетку: нажмите на неё или используйте стрелки."); return; }
+      if (target < 0) { hint(t("hintPickFirst")); return; }
       e.preventDefault();
       setDigit(target, Number(k));
       return;
@@ -556,21 +732,21 @@ th { font-weight: 600; }
       if (i === lastBest) b.classList.add("best");
       if (inLine.includes(i)) b.classList.add("inline");
       if (i === picked) b.classList.add("picked");
-      if (grid[i]) { b.textContent = grid[i]; b.setAttribute("aria-label", CELL_NAMES[i] + ": " + grid[i]); }
-      else if (i === lastBest) { b.textContent = ""; b.setAttribute("aria-label", CELL_NAMES[i] + ", лучший ход"); }
-      else { b.textContent = ""; b.setAttribute("aria-label", CELL_NAMES[i] + ", пусто"); }
+      if (grid[i]) { b.textContent = grid[i]; b.setAttribute("aria-label", CELL_NAMES()[i] + ": " + grid[i]); }
+      else if (i === lastBest) { b.textContent = ""; b.setAttribute("aria-label", CELL_NAMES()[i] + t("ariaBest")); }
+      else { b.textContent = ""; b.setAttribute("aria-label", CELL_NAMES()[i] + t("ariaEmpty")); }
     });
     const any = grid.some(Boolean);
     const ev = any ? lineEVs(grid) : null;
     badges.forEach(d => {
       const el = d.el;
       el.className = "badge " + d.kind;
-      if (!any) { el.classList.add("empty"); el.innerHTML = '<span class="arr">' + d.arr + "</span>?"; el.setAttribute("aria-label", LINE_SHORT[d.line]); return; }
+      if (!any) { el.classList.add("empty"); el.innerHTML = '<span class="arr">' + d.arr + "</span>?"; el.setAttribute("aria-label", LINE_SHORT()[d.line]); return; }
       const sure = LINES[d.line].every(i => grid[i]);
       if (d.line === bestLine) el.classList.add("best");
       if (d.line === selLine) el.classList.add("sel");
       el.innerHTML = '<span class="arr">' + d.arr + "</span>" + (sure ? "" : "~") + fmt(ev[d.line]);
-      el.setAttribute("aria-label", LINE_SHORT[d.line] + ": " + (sure ? "" : "в среднем ") + fmt(ev[d.line]) + " очков");
+      el.setAttribute("aria-label", t("ariaLine", LINE_SHORT()[d.line], sure, fmt(ev[d.line])));
     });
   }
 
@@ -587,8 +763,8 @@ th { font-weight: 600; }
       const rows = outs.map(o =>
         '<li class="' + (o.pay >= 420 ? "big" : "") + '"><span class="s">' + o.sum + "</span><span>" + o.pay + "</span></li>"
       ).join("");
-      return '<div class="' + cls + '" data-line="' + d.line + '" aria-label="' + LINE_SHORT[d.line] + '"><p class="lcol-head">' + mini +
-        '<span class="v">' + (sure ? "" : "~") + fmt(ev[d.line]) + (sure ? " ✓" : "") + "</span></p><div class=\"cols\"><span>сумма</span><span>очки</span></div><ul>" + rows + "</ul></div>";
+      return '<div class="' + cls + '" data-line="' + d.line + '" aria-label="' + LINE_SHORT()[d.line] + '"><p class="lcol-head">' + mini +
+        '<span class="v">' + (sure ? "" : "~") + fmt(ev[d.line]) + (sure ? " ✓" : "") + "</span></p><div class=\"cols\"><span>" + t("colSum") + "</span><span>" + t("colPts") + "</span></div><ul>" + rows + "</ul></div>";
     }).join("");
     [...$("linesGrid").children].forEach(el => {
       const line = Number(el.dataset.line);
@@ -634,11 +810,10 @@ th { font-weight: 600; }
     if (!top.length) top = outs.slice(0, 1);
     const pct = o => Math.round(o.p * 100) + "%";
     const prize = top.length === 1
-      ? "с шансом " + pct(top[0]) + " там " + (top[0].pay >= 1008 ? "джекпот " : "") + top[0].pay
-      : "с шансом " + top.map(o => pct(o) + " — " + o.pay).join(", ");
-    $("guardTitle").textContent = "Можно взять гарантию: " + LINE_SHORT[guardLine].toLowerCase() + " — " + plural(Math.round(val), "очко", "очка", "очков") + ".";
-    $("guardText").textContent = LINE_SHORT[bestLine] + " в " + Math.round(pLess * 10) + " из 10 случаев даст меньше " + fmt(val) +
-      ", зато " + prize + ". В среднем — " + fmt(ev[bestLine]) + ".";
+      ? t("prizeOne", pct(top[0]), top[0].pay >= 1008, top[0].pay)
+      : t("prizeMany", top.map(o => pct(o) + " — " + o.pay).join(", "));
+    $("guardTitle").textContent = t("guardTitle", LINE_SHORT()[guardLine], Math.round(val));
+    $("guardText").textContent = t("guardText", LINE_SHORT()[bestLine], Math.round(pLess * 10), fmt(val), prize, fmt(ev[bestLine]));
     $("guard").hidden = false;
   }
   $("guardBtn").addEventListener("click", () => { selLine = guardLine; renderDetail(); paintCells(); renderReport(); });
@@ -655,9 +830,9 @@ th { font-weight: 600; }
 
     if (known === 0) {
       selLine = -1;
-      $("step").textContent = "Начало";
-      $("verdict").textContent = "Впишите стартовую цифру";
-      $("sub").textContent = "Нажмите на клетку, где в игре открыта цифра, и введите её.";
+      $("step").textContent = t("stepStart");
+      $("verdict").textContent = t("verdictStart");
+      $("sub").textContent = t("subStart");
       renderDetail(); paintCells(); return;
     }
 
@@ -665,8 +840,8 @@ th { font-weight: 600; }
     bestLine = ev.indexOf(Math.max(...ev));
     const m = Math.max(0, 4 - known);
     const sure = LINES[bestLine].every(i => grid[i]);
-    $("step").textContent = m > 0 ? "Ход " + known + " из 3" : "Все ходы сделаны";
-    $("verdict").textContent = "Считаю…";
+    $("step").textContent = m > 0 ? t("step", known) : t("stepDone");
+    $("verdict").textContent = t("calculating");
     $("sub").textContent = "";
     paintCells();
 
@@ -682,16 +857,16 @@ th { font-weight: 600; }
         early = sure && bv <= ev[bestLine] + 0.5;
         if (early) {
           lastCells = Array(9).fill(null); lastBest = -1;
-          $("step").textContent = "Готово";
-          $("verdict").textContent = "Дальше можно не открывать";
-          $("sub").textContent = "Берите " + LINE_NAMES[bestLine] + ": это гарантированные " + fmt(ev[bestLine]) + " очков, больше уже ничего не даст.";
+          $("step").textContent = t("stepReady");
+          $("verdict").textContent = t("verdictStop");
+          $("sub").textContent = t("subStop", LINE_NAMES()[bestLine], fmt(ev[bestLine]));
         } else {
-          $("verdict").textContent = "Откройте " + CELL_NAMES[lastBest];
-          $("sub").textContent = "Она подсвечена золотым. Впишите цифру, которая там откроется.";
+          $("verdict").textContent = t("verdictOpen", CELL_NAMES()[lastBest]);
+          $("sub").textContent = t("subOpen");
         }
       } else {
-        $("verdict").textContent = "Берите " + LINE_NAMES[bestLine];
-        $("sub").textContent = sure ? "Это гарантированные " + fmt(ev[bestLine]) + " очков." : "В среднем около " + fmt(ev[bestLine]) + " очков.";
+        $("verdict").textContent = t("verdictTake", LINE_NAMES()[bestLine]);
+        $("sub").textContent = sure ? t("subSure", fmt(ev[bestLine])) : t("subAvg", fmt(ev[bestLine]));
         renderGuard(ev);
       }
       finished = m === 0 || early;
@@ -703,7 +878,7 @@ th { font-weight: 600; }
   }
 
   $("reset").addEventListener("click", () => {
-    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; elfKind = null; update();
+    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE()); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; elfKind = null; update();
   });
 
   // ---------- Статистика ----------
@@ -814,9 +989,7 @@ th { font-weight: 600; }
     if (sent) {
       $("reportNote").textContent = "";
       $("elfCheckWrap").hidden = true;
-      $("reportSums").innerHTML = '<p class="report-done">' + (sentQueued
-        ? "Сохранено. Сервер сейчас не отвечает — партия отправится сама, когда появится связь."
-        : "Записано, спасибо!") + " Для новой партии нажмите «Начать заново».</p>";
+      $("reportSums").innerHTML = '<p class="report-done">' + (sentQueued ? t("doneQueued") : t("doneOk")) + t("doneNext") + "</p>";
       return;
     }
     // Вопрос про фею — только когда она могла сработать или джекпот уже на поле
@@ -824,18 +997,18 @@ th { font-weight: 600; }
     const elfAsk = elfState().possible || jackLine;
     if (!elfTouched && elfState().shown) { elfAnswer = true; $("elfCheck").checked = true; }
     $("elfCheckWrap").hidden = !elfAsk;
-    $("elfQText").textContent = elfState().possible ? "Фея могла появиться в этой партии:" : "Линия собрана. Фея помогала?";
+    $("elfQText").textContent = elfState().possible ? t("elfQPossible") : t("elfQJack");
     $("elfYesBtn").className = elfAnswer === true ? "on" : "";
     $("elfNoBtn").className = elfAnswer === false ? "on" : "";
     const waitElf = elfAsk && elfAnswer === null;
     $("elfHint").hidden = !waitElf;
-    $("reportNote").textContent = "Линия: " + LINE_SHORT[selLine].toLowerCase() + ". Если взяли другую, сначала нажмите на её значок у поля.";
+    $("reportNote").textContent = t("reportNote", LINE_SHORT()[selLine]);
     const sums = $("reportSums");
     sums.innerHTML = "";
     lineOutcomes(grid, LINES[selLine]).slice().sort((a, b) => a.sum - b.sum).forEach(o => {
       const b = document.createElement("button");
       b.type = "button";
-      b.innerHTML = "<b>" + o.sum + '</b><span class="arr">→</span>' + o.pay + " очков";
+      b.innerHTML = "<b>" + o.sum + '</b><span class="arr">→</span>' + t("sumBtn", o.pay);
       b.disabled = waitElf;
       b.addEventListener("click", () => sendResult(o));
       sums.appendChild(b);
@@ -873,15 +1046,11 @@ th { font-weight: 600; }
     flushQueue();
   }
 
-  const plural = (n, one, few, many) => {
-    const a = n % 10, b = n % 100;
-    return n + " " + (a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many);
-  };
-  const games = n => plural(n, "партия", "партии", "партий");
+  const games = n => t("gamesN", n);
 
   // «38% (3 из 8)» или прочерк, если случаев ещё не было
-  const share = (n, k) => k ? Math.round(100 * n / k) + "% (" + n + " из " + k + ")" : "—";
-  const times = n => plural(n, "раз", "раза", "раз");
+  const share = (n, k) => t("share", n, k);
+  const times = n => t("times", n);
 
   // Ожидаемое число партий группы: сумма шансов от скрипта, а у старого скрипта — из процента
   const expN = (st, g) => st[g + "_exp_n"] != null ? st[g + "_exp_n"] : st.games * st[g + "_exp"] / 100;
@@ -893,8 +1062,8 @@ th { font-weight: 600; }
   function bars(real, calc, n, calcN, max) {
     const w = v => (100 * v / Math.max(max, 1)) + "%";
     return '<div class="cmp-bars">' +
-      '<div class="cmp-bar real"><span class="track"><i style="width:' + w(real) + '"></i></span><span>выпало ' + String(real).replace(".", ",") + "% · " + times(n) + "</span></div>" +
-      '<div class="cmp-bar calc"><span class="track"><i style="width:' + w(calc) + '"></i></span><span>по расчёту ' + String(calc).replace(".", ",") + "% · ≈" + times(Math.round(calcN)) + "</span></div></div>";
+      '<div class="cmp-bar real"><span class="track"><i style="width:' + w(real) + '"></i></span><span>' + t("barReal", t("dec", real), times(n)) + "</span></div>" +
+      '<div class="cmp-bar calc"><span class="track"><i style="width:' + w(calc) + '"></i></span><span>' + t("barCalc", t("dec", calc), times(Math.round(calcN))) + "</span></div></div>";
   }
 
   // Последняя загруженная статистика хранится в браузере: при открытии страницы
@@ -920,54 +1089,71 @@ th { font-weight: 600; }
     }
   }
 
+  let lastStats = null;  // последняя показанная статистика — перерисовать при смене языка
   function renderStats(data) {
+    lastStats = data;
     const st = data && data.stats;
     if (!st || !st.games) return;
     {
       $("stats").hidden = false;
 
       // 1. Сколько в среднем даёт партия
-      $("stFair").innerHTML = "<h3>Средний выигрыш игроков</h3>" +
-        '<p class="st-big">' + fmt(st.avg_score) + " очков за партию</p>" +
-        '<p class="st-text">' +
-        "Посчитано по " + plural(st.games, "партии", "партиям", "партиям") + "." +
-        (st.started ? " Результат отметили в " + Math.min(100, Math.round(100 * st.reported / st.started)) + "% партий, дошедших до выбора линии." : "") + "</p>";
+      $("stFair").innerHTML = "<h3>" + t("fairH") + "</h3>" +
+        '<p class="st-big">' + t("fairBig", fmt(st.avg_score)) + "</p>" +
+        '<p class="st-text">' + t("fairBased", t("gamesDat", st.games)) +
+        (st.started ? t("fairReported", Math.min(100, Math.round(100 * st.reported / st.started))) : "") + "</p>";
 
       // 2. Как часто выпадают крупные выигрыши — по факту и по расчёту
       const barMax = Math.max(st.jack_pct, st.big_pct, st.mid_pct, st.small_pct, ...["jack", "big", "mid", "small"].map(g => expPct(st, g)));
-      $("stGroups").innerHTML = "<h3>Как часто что выпадает (из " + plural(st.games, "партии", "партий", "партий") + ")</h3>" +
-        '<p class="st-text cmp-note">Тёмная полоса — сколько выпало на самом деле. Светлая — сколько должно было выпасть, если у всех раскладов цифр равные шансы.</p><div class="cmp">' +
-        '<div class="cmp-row"><span class="cmp-name">Джекпот<small>1008, 1680</small></span>' + bars(st.jack_pct, expPct(st, "jack"), st.jack_n, expN(st, "jack"), barMax) + "</div>" +
-        '<div class="cmp-row"><span class="cmp-name">Крупный<small>420–840</small></span>' + bars(st.big_pct, expPct(st, "big"), st.big_n, expN(st, "big"), barMax) + "</div>" +
-        '<div class="cmp-row"><span class="cmp-name">Средний<small>105–280</small></span>' + bars(st.mid_pct, expPct(st, "mid"), st.mid_n, expN(st, "mid"), barMax) + "</div>" +
-        '<div class="cmp-row"><span class="cmp-name">Мелкий<small>34–84</small></span>' + bars(st.small_pct, expPct(st, "small"), st.small_n, expN(st, "small"), barMax) + "</div></div>";
+      $("stGroups").innerHTML = "<h3>" + t("groupsH", t("gamesGen", st.games)) + "</h3>" +
+        '<p class="st-text cmp-note">' + t("groupsNote") + '</p><div class="cmp">' +
+        '<div class="cmp-row"><span class="cmp-name">' + t("gJack") + '<small>1008, 1680</small></span>' + bars(st.jack_pct, expPct(st, "jack"), st.jack_n, expN(st, "jack"), barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">' + t("gBig") + '<small>420–840</small></span>' + bars(st.big_pct, expPct(st, "big"), st.big_n, expN(st, "big"), barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">' + t("gMid") + '<small>105–280</small></span>' + bars(st.mid_pct, expPct(st, "mid"), st.mid_n, expN(st, "mid"), barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">' + t("gSmall") + '<small>34–84</small></span>' + bars(st.small_pct, expPct(st, "small"), st.small_n, expN(st, "small"), barMax) + "</div></div>";
 
       // 3. Фея
       $("stElf").hidden = !st.elf_chances;
       if (st.elf_chances) {
-        $("stElf").innerHTML = "<h3>Фея</h3>" +
-          '<p class="st-big">Появлялась в ' + Math.round(100 * st.elf_n / st.elf_chances) + "% случаев</p>" +
-          '<p class="st-text"><b>' + st.elf_n + "</b> из " + st.elf_chances + ".</p>" +
+        $("stElf").innerHTML = "<h3>" + t("elfH") + "</h3>" +
+          '<p class="st-big">' + t("elfBig", Math.round(100 * st.elf_n / st.elf_chances)) + "</p>" +
+          '<p class="st-text">' + t("elfOf", st.elf_n, st.elf_chances) + "</p>" +
           (st.fill_chances || st.repl_chances
-            ? '<p class="st-text elf-split">Поставила цифру в закрытую клетку: <b>' + share(st.fill_n, st.fill_chances) +
-              "</b><br>Заменила открытую цифру: <b>" + share(st.repl_n, st.repl_chances) + "</b></p>"
+            ? '<p class="st-text elf-split">' + t("elfFill") + " <b>" + share(st.fill_n, st.fill_chances) +
+              "</b><br>" + t("elfRepl") + " <b>" + share(st.repl_n, st.repl_chances) + "</b></p>"
             : "") +
-          '<p class="st-foot">Случай — партия, где фея могла появиться: после всех открытий в линии две цифры из 1-2-3 или 7-8-9, а третьей нигде нет.</p>';
+          '<p class="st-foot">' + t("elfFoot") + "</p>";
       }
 
       // 4. Личные результаты
       const me = data.me;
       $("stMine").hidden = !(me && me.games);
       if (me && me.games) {
-        $("stMine").innerHTML = "<h3>Ваши партии</h3>" +
-          '<p class="st-big">' + fmt(me.total) + " очков за " + games(me.games) + "</p>" +
-          '<p class="st-text">В среднем <b>' + fmt(me.avg_score) + "</b> за партию, по расчёту ожидалось <b>" + fmt(me.avg_expected) + "</b>." +
-          (me.elf_chances ? " Фея: <b>" + me.elf_n + " из " + me.elf_chances + "</b>." : "") + "</p>";
+        $("stMine").innerHTML = "<h3>" + t("mineH") + "</h3>" +
+          '<p class="st-big">' + t("mineBig", fmt(me.total), games(me.games)) + "</p>" +
+          '<p class="st-text">' + t("mineText", fmt(me.avg_score), fmt(me.avg_expected)) +
+          (me.elf_chances ? t("mineElf", me.elf_n, me.elf_chances) : "") + "</p>";
       }
     }
   }
 
-  buildBoard(); buildPad(); loadStats(); flushQueue(); hint(HINT_IDLE); update();
+  // Подписи в разметке и всё, что рисует калькулятор, — на выбранном языке
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.title = t("title");
+    document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-aria]").forEach(el => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+    document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
+  }
+  document.querySelectorAll(".lang button").forEach(b => b.addEventListener("click", () => {
+    if (b.dataset.lang === lang) return;
+    lang = b.dataset.lang;
+    try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* не запомним — не страшно */ }
+    applyLang(); buildPad(); hint(picked >= 0 ? t("hintCell", CELL_NAMES()[picked]) : HINT_IDLE()); update();
+    if (lastStats) renderStats(lastStats);
+  }));
+
+  applyLang(); buildBoard(); buildPad(); loadStats(); flushQueue(); hint(HINT_IDLE()); update();
 })();
 </script>
 </body>
