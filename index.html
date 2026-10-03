@@ -921,7 +921,7 @@ th { font-weight: 600; }
       const barMax = Math.max(st.jack_pct, st.jack_exp, st.big_pct, st.big_exp, st.mid_pct, st.mid_exp, st.small_pct, st.small_exp);
       $("stGroups").innerHTML = "<h3>Как часто что выпадает (из " + plural(st.games, "партии", "партий", "партий") + ")</h3>" +
         '<p class="st-text cmp-note">Тёмная полоса — сколько выпало на самом деле. Светлая — сколько должно было выпасть, если у всех раскладов цифр равные шансы.</p><div class="cmp">' +
-        '<div class="cmp-row"><span class="cmp-name">Джекпот<small>1‑2‑3, 7‑8‑9</small></span>' + bars(st.jack_pct, st.jack_exp, st.jack_n, st.games, barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">Джекпот<small>1008, 1680</small></span>' + bars(st.jack_pct, st.jack_exp, st.jack_n, st.games, barMax) + "</div>" +
         '<div class="cmp-row"><span class="cmp-name">Крупный<small>420–840</small></span>' + bars(st.big_pct, st.big_exp, st.big_n, st.games, barMax) + "</div>" +
         '<div class="cmp-row"><span class="cmp-name">Средний<small>105–280</small></span>' + bars(st.mid_pct, st.mid_exp, st.mid_n, st.games, barMax) + "</div>" +
         '<div class="cmp-row"><span class="cmp-name">Мелкий<small>34–84</small></span>' + bars(st.small_pct, st.small_exp, st.small_n, st.games, barMax) + "</div></div>";
