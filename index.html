@@ -40,7 +40,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
 }
 
 .site-header {
-  max-width: 1080px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 20px 24px 0;
   display: flex;
@@ -56,7 +56,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visibl
 .site-header nav a { color: var(--muted); text-decoration: none; font-size: 15px; }
 .site-header nav a:hover { color: var(--ink); }
 
-main { max-width: 1080px; margin: 0 auto; padding: 0 24px 64px; }
+main { max-width: 960px; margin: 0 auto; padding: 0 24px 64px; }
 
 h1, h2, h3 { font-family: var(--display); font-weight: 700; line-height: 1.15; }
 h1 { font-size: clamp(30px, 5vw, 48px); margin: 40px 0 12px; letter-spacing: -0.01em; }
@@ -71,7 +71,7 @@ table { border-collapse: collapse; margin: 8px 0 20px; font-size: 16px; }
 th, td { text-align: left; padding: 8px 18px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
 th { font-weight: 600; }
 
-.footer { max-width: 1080px; margin: 0 auto; padding: 24px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--rule); }
+.footer { max-width: 960px; margin: 0 auto; padding: 24px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--rule); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
@@ -154,9 +154,9 @@ th { font-weight: 600; }
   .all-lines[hidden] { display: none; }
   .all-lines h2 { margin: 0 0 6px; font-size: 20px; }
   .all-lines .lines-note { margin-bottom: 0; }
-  .lines-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; margin-top: 14px; }
-  .lcol { background: #fff; border: 1px solid var(--rule); border-radius: 14px; padding: 10px; transition: box-shadow .12s ease; }
-  .lcol.best { border: 2px solid var(--gold); padding: 9px; }
+  .lines-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 14px; }
+  .lcol { background: #fff; border: 1px solid var(--rule); border-radius: 14px; padding: 9px 7px; transition: box-shadow .12s ease; }
+  .lcol.best { border: 2px solid var(--gold); padding: 8px 6px; }
   .lcol.sel { box-shadow: 0 0 0 3px var(--tile); }
   /* Шапка карточки: мини-поле с клетками линии и средний выигрыш */
   .lcol-head { display: flex; align-items: center; gap: 7px; margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
@@ -164,8 +164,8 @@ th { font-weight: 600; }
   .mini i { width: 9px; height: 9px; border-radius: 2px; background: var(--paper-deep); }
   .mini i.on { background: var(--tile); }
   .lcol-head .v { font: 700 16px/1 var(--display); white-space: nowrap; letter-spacing: -0.02em; }
-  .lcol ul { list-style: none; padding: 0; margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
-  .lcol li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 6px; border-radius: 6px; }
+  .lcol ul { list-style: none; padding: 0; margin: 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .lcol li { display: flex; justify-content: space-between; gap: 4px; padding: 2px 4px; border-radius: 6px; }
   .lcol li .s { color: var(--muted); }
   .lcol li .s::after { content: " →"; opacity: .6; }
   .lcol .cols { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); padding: 0 6px 4px; }
@@ -210,7 +210,8 @@ th { font-weight: 600; }
 
   /* Статистика игроков */
   .stats h2 { margin: 48px 0 14px; font-size: 20px; }
-  .st-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; max-width: 760px; }
+  .st-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  @media (min-width: 700px) { .st-grid { grid-template-columns: repeat(2, 1fr); } }
   .st-card { background: #fff; border: 1px solid var(--rule); border-radius: 16px; padding: 16px 18px; }
   .st-card h3 { margin: 0 0 6px; font: 600 14px var(--text); color: var(--muted); }
   .st-big { font: 700 20px/1.25 var(--display); margin: 0 0 6px; }
