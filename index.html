@@ -230,8 +230,9 @@ th { font-weight: 600; }
   .cmp-name { font-weight: 600; line-height: 1.2; }
   .cmp-name small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
   .cmp-bars { display: grid; gap: 3px; }
-  .cmp-bar { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
-  .cmp-bar i { height: 10px; border-radius: 3px; min-width: 2px; }
+  .cmp-bar { display: grid; grid-template-columns: minmax(40px, 1fr) 13.5em; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+  .cmp-bar .track { display: block; }
+  .cmp-bar i { display: block; height: 10px; border-radius: 3px; min-width: 2px; }
   .cmp-bar.real i { background: var(--tile); }
   .cmp-bar.calc i { background: var(--petal); }
   .cmp-bar span { white-space: nowrap; color: var(--muted); font-size: 12.5px; }
@@ -890,11 +891,11 @@ th { font-weight: 600; }
   const share = (n, k) => k ? Math.round(100 * n / k) + "% (" + n + " из " + k + ")" : "—";
   const times = n => plural(n, "раз", "раза", "раз");
 
-  function bars(real, calc, n, total) {
-    const max = Math.max(real, calc, 1);
+  function bars(real, calc, n, total, max) {
+    const w = v => (100 * v / Math.max(max, 1)) + "%";
     return '<div class="cmp-bars">' +
-      '<div class="cmp-bar real"><i style="width:' + (60 * real / max) + '%"></i><span>выпало ' + String(real).replace(".", ",") + "% · " + times(n) + "</span></div>" +
-      '<div class="cmp-bar calc"><i style="width:' + (60 * calc / max) + '%"></i><span>по расчёту ' + String(calc).replace(".", ",") + "% · ≈" + times(Math.round(total * calc / 100)) + "</span></div></div>";
+      '<div class="cmp-bar real"><span class="track"><i style="width:' + w(real) + '"></i></span><span>выпало ' + String(real).replace(".", ",") + "% · " + times(n) + "</span></div>" +
+      '<div class="cmp-bar calc"><span class="track"><i style="width:' + w(calc) + '"></i></span><span>по расчёту ' + String(calc).replace(".", ",") + "% · ≈" + times(Math.round(total * calc / 100)) + "</span></div></div>";
   }
 
   async function loadStats(attempt = 1) {
@@ -917,12 +918,13 @@ th { font-weight: 600; }
         (st.started ? " Результат отметили в " + Math.min(100, Math.round(100 * st.reported / st.started)) + "% партий, дошедших до выбора линии." : "") + "</p>";
 
       // 2. Как часто выпадают крупные выигрыши — по факту и по расчёту
+      const barMax = Math.max(st.jack_pct, st.jack_exp, st.big_pct, st.big_exp, st.mid_pct, st.mid_exp, st.small_pct, st.small_exp);
       $("stGroups").innerHTML = "<h3>Как часто что выпадает (из " + plural(st.games, "партии", "партий", "партий") + ")</h3>" +
         '<p class="st-text cmp-note">Тёмная полоса — сколько выпало на самом деле. Светлая — сколько должно было выпасть, если у всех раскладов цифр равные шансы.</p><div class="cmp">' +
-        '<div class="cmp-row"><span class="cmp-name">Джекпот<small>1‑2‑3, 7‑8‑9</small></span>' + bars(st.jack_pct, st.jack_exp, st.jack_n, st.games) + "</div>" +
-        '<div class="cmp-row"><span class="cmp-name">Крупный<small>420–840</small></span>' + bars(st.big_pct, st.big_exp, st.big_n, st.games) + "</div>" +
-        '<div class="cmp-row"><span class="cmp-name">Средний<small>105–280</small></span>' + bars(st.mid_pct, st.mid_exp, st.mid_n, st.games) + "</div>" +
-        '<div class="cmp-row"><span class="cmp-name">Мелкий<small>34–84</small></span>' + bars(st.small_pct, st.small_exp, st.small_n, st.games) + "</div></div>";
+        '<div class="cmp-row"><span class="cmp-name">Джекпот<small>1‑2‑3, 7‑8‑9</small></span>' + bars(st.jack_pct, st.jack_exp, st.jack_n, st.games, barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">Крупный<small>420–840</small></span>' + bars(st.big_pct, st.big_exp, st.big_n, st.games, barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">Средний<small>105–280</small></span>' + bars(st.mid_pct, st.mid_exp, st.mid_n, st.games, barMax) + "</div>" +
+        '<div class="cmp-row"><span class="cmp-name">Мелкий<small>34–84</small></span>' + bars(st.small_pct, st.small_exp, st.small_n, st.games, barMax) + "</div></div>";
 
       // 3. Фея
       $("stElf").hidden = !st.elf_chances;
