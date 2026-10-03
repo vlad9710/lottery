@@ -713,8 +713,10 @@ th { font-weight: 600; }
     } catch (e) { return "anon"; }
   }
 
-  // Ждём ответ не дольше 8 секунд: если соединение с базой обрывается, браузер иначе висит до 40 секунд
-  const API_TIMEOUT = 8000;
+  // Ждём ответ не дольше 3 секунд: обычно он приходит за 0,3 с, а подвисшее соединение
+  // почти никогда не оживает — быстрее открыть новое (иначе браузер висит до 40 секунд)
+  const API_TIMEOUT = 3000;
+  const API_TRIES = 5;
   function api(path, opts = {}) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT);
@@ -750,6 +752,16 @@ th { font-weight: 600; }
     return { res: "later", msg };
   }
 
+  // То же с быстрыми повторами, если связь оборвалась
+  async function postRowRetry(table, row) {
+    let out;
+    for (let i = 0; i < API_TRIES; i++) {
+      out = await postRow(table, row);
+      if (out.msg !== "network") break;
+    }
+    return out;
+  }
+
   let flushing = false;
   async function flushQueue() {
     if (!statsOn || flushing) return;
@@ -770,7 +782,7 @@ th { font-weight: 600; }
     if (!statsOn || startSent) return;
     startSent = true;
     const row = { game_id: gameId, player: playerId() };
-    const { res, msg } = await postRow("starts", row);
+    const { res, msg } = await postRowRetry("starts", row);
     if (res === "later" && msg === "network") enqueue("starts", row);
   }
 
@@ -832,7 +844,7 @@ th { font-weight: 600; }
       elf_shown: $("elfCheck").checked,
       elf_moments: elfState().possible || $("elfCheck").checked ? 1 : 0
     };
-    const { res, msg = "" } = await postRow("games", row);
+    const { res, msg = "" } = await postRowRetry("games", row);
     if (res === "ok" || msg === "network") {
       // Нет связи — сохраняем в очередь, отправится сама
       if (res !== "ok") { enqueue("games", row); sentQueued = true; }
@@ -911,7 +923,7 @@ th { font-weight: 600; }
       }
     } catch (e) {
       // Связь оборвалась — тихо пробуем ещё раз
-      if (attempt < 3) setTimeout(() => loadStats(attempt + 1), 2500);
+      if (attempt < API_TRIES) setTimeout(() => loadStats(attempt + 1), 200);
     }
   }
 
