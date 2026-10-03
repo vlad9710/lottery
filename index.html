@@ -238,6 +238,15 @@ th { font-weight: 600; }
   .cmp-bar.real i { background: var(--tile); }
   .cmp-bar.calc i { background: var(--petal); }
   .cmp-bar span { white-space: nowrap; color: var(--muted); font-size: 12.5px; }
+  /* Телефон: название группы сверху, под ним подпись и полоса на всю ширину карточки */
+  @media (max-width: 560px) {
+    .cmp { gap: 14px; }
+    .cmp-row { grid-template-columns: 1fr; gap: 6px; }
+    .cmp-name small { display: inline; margin-left: 6px; }
+    .cmp-bars { gap: 6px; }
+    .cmp-bar { grid-template-columns: 1fr; gap: 3px; }
+    .cmp-bar span:last-child { order: -1; white-space: normal; }
+  }
   .cmp-bar.real span { color: var(--ink); }
 
 
