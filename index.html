@@ -205,8 +205,13 @@ th { font-weight: 600; }
   .guard-title { margin: 0 0 4px; font-weight: 600; }
   .guard-text { margin: 0 0 12px; font-size: 15px; color: var(--muted); }
   .guard .btn { padding: 6px 16px; font-size: 14px; }
-  .elf-check { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 9px 12px; background: #FCEFC7; border-radius: 10px; font-size: 15px; cursor: pointer; }
-  .elf-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--tile); flex: none; }
+  /* Вопрос про фею: две кнопки, без ответа результат не записать */
+  .elf-q { margin: 0 0 14px; padding: 12px 14px; background: #FCEFC7; border: 2px solid var(--gold); border-radius: 12px; }
+  .elf-q-text { margin: 0 0 10px; font-weight: 600; }
+  .seg { display: flex; gap: 8px; flex-wrap: wrap; }
+  .seg button { border: 2px solid var(--ink); background: #fff; color: var(--ink); border-radius: 999px; padding: 7px 16px; font: 500 15px var(--text); cursor: pointer; }
+  .seg button.on { background: var(--ink); color: #fff; }
+  .elf-hint { margin: 10px 0 0; font-size: 14px; color: var(--pumpkin); }
 
   /* Статистика игроков */
   .stats h2 { margin: 48px 0 14px; font-size: 20px; }
@@ -261,7 +266,12 @@ th { font-weight: 600; }
       <div class="report" id="report" hidden>
         <p class="report-q">Какая сумма выпала? Нажмите на неё</p>
         <p class="report-note" id="reportNote"></p>
-        <label class="elf-check" id="elfCheckWrap"><input type="checkbox" id="elfCheck"> Фея показала цифру в этой партии</label>
+        <div class="elf-q" id="elfCheckWrap" hidden>
+          <p class="elf-q-text" id="elfQText"></p>
+          <div class="seg"><button type="button" id="elfYesBtn">Появилась</button><button type="button" id="elfNoBtn">Не появилась</button></div>
+          <p class="elf-hint" id="elfHint">Сначала отметьте, появилась ли фея, — потом выберите сумму.</p>
+        </div>
+        <input type="checkbox" id="elfCheck" hidden>
         <div class="sums" id="reportSums"></div>
       </div>
       <div class="actions"><button class="btn" id="reset" type="button">Начать заново</button></div>
@@ -673,7 +683,7 @@ th { font-weight: 600; }
   }
 
   $("reset").addEventListener("click", () => {
-    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; elfTouched = false; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; update();
+    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE); sent = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; update();
   });
 
   // ---------- Статистика ----------
@@ -688,7 +698,10 @@ th { font-weight: 600; }
   let gameId = newGameId();
   let startSent = false;
   let elfTouched = false;  // игрок сам трогал галочку — больше не переставляем
-  $("elfCheck").addEventListener("change", () => { elfTouched = true; });
+  let elfAnswer = null;    // ответ про фею: true / false / null — ещё не ответили
+  const answerElf = v => { elfAnswer = v; elfTouched = true; $("elfCheck").checked = v; renderReport(); };
+  $("elfYesBtn").addEventListener("click", () => answerElf(true));
+  $("elfNoBtn").addEventListener("click", () => answerElf(false));
 
   // Анонимный id браузера, чтобы считать число игроков
   function playerId() {
@@ -725,8 +738,16 @@ th { font-weight: 600; }
       $("reportSums").innerHTML = '<p class="report-done">Записано, спасибо! Для новой партии нажмите «Начать заново».</p>';
       return;
     }
-    $("elfCheckWrap").hidden = false;
-    if (!elfTouched) $("elfCheck").checked = elfState().shown;
+    // Вопрос про фею — только когда она могла сработать или джекпот уже на поле
+    const jackLine = LINES.some(l => [[1,2,3],[7,8,9]].some(S => l.every(i => S.includes(grid[i]))));
+    const elfAsk = elfState().possible || jackLine;
+    if (!elfTouched && elfState().shown) { elfAnswer = true; $("elfCheck").checked = true; }
+    $("elfCheckWrap").hidden = !elfAsk;
+    $("elfQText").textContent = elfState().possible ? "Фея могла появиться в этой партии:" : "Линия собрана. Фея помогала?";
+    $("elfYesBtn").className = elfAnswer === true ? "on" : "";
+    $("elfNoBtn").className = elfAnswer === false ? "on" : "";
+    const waitElf = elfAsk && elfAnswer === null;
+    $("elfHint").hidden = !waitElf;
     $("reportNote").textContent = "Линия: " + LINE_SHORT[selLine].toLowerCase() + ". Если взяли другую, сначала нажмите на её значок у поля.";
     const sums = $("reportSums");
     sums.innerHTML = "";
@@ -734,6 +755,7 @@ th { font-weight: 600; }
       const b = document.createElement("button");
       b.type = "button";
       b.innerHTML = "<b>" + o.sum + '</b><span class="arr">→</span>' + o.pay + " очков";
+      b.disabled = waitElf;
       b.addEventListener("click", () => sendResult(o));
       sums.appendChild(b);
     });
