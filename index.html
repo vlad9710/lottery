@@ -705,10 +705,9 @@ th { font-weight: 600; }
   });
 
   // ---------- Статистика ----------
-  // Ключи проекта Supabase. Пока они пустые, запись и статистика спрятаны.
-  const SUPABASE_URL = "https://ulattpjvnkoisrtrtirv.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_hjJMEKolOtE_h11lohheuw_Z8l6GQAf";
-  const statsOn = Boolean(SUPABASE_URL && SUPABASE_KEY);
+  // Адрес скрипта Google Таблицы, где хранится статистика. Пока он пустой, запись и статистика спрятаны.
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_x3bVsvlihXWqDRGagNxRNGbZ5MUp1mx4XP2dqRDtL8D_1UAxbZi758JJ4Qsv47JZqA/exec";
+  const statsOn = Boolean(SCRIPT_URL);
   let sent = false;
   let sentQueued = false;  // результат лёг в очередь, а не сразу в базу
   // Id партии: связывает «дошёл до выбора линии» и «отметил результат»
@@ -731,41 +730,29 @@ th { font-weight: 600; }
     } catch (e) { return "anon"; }
   }
 
-  // Ждём ответ не дольше 3 секунд: обычно он приходит за 0,3 с, а подвисшее соединение
-  // почти никогда не оживает — быстрее открыть новое (иначе браузер висит до 40 секунд)
-  const API_TIMEOUT = 3000;
-  const API_TRIES = 5;
-  function api(path, opts = {}) {
+  // Ждём ответ не дольше 10 секунд: Google отвечает за 1–2 с, а при первом обращении — дольше
+  const API_TIMEOUT = 10000;
+  const API_TRIES = 3;
+  // Запрос к скрипту. Тело — простой текст, без своих заголовков: тогда браузер
+  // не делает предварительный проверочный запрос, и соединений вдвое меньше
+  async function callScript(payload) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT);
-    return fetch(SUPABASE_URL + "/rest/v1/" + path, {
-      ...opts,
-      signal: ctrl.signal,
-      headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY, "Content-Type": "application/json", ...(opts.headers || {}) }
-    }).finally(() => clearTimeout(timer));
-  }
-
-  // Очередь: записи, которые не дошли до базы из-за обрыва связи. Хранится в браузере
-  // и отправляется по одной, когда связь появляется (база принимает не чаще раза в 15 секунд)
-  const QUEUE_KEY = "lotteryQueue";
-  const QUEUE_GAP = 16000;
-  function readQueue() {
-    try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch (e) { return []; }
-  }
-  function writeQueue(q) {
-    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch (e) { /* без хранилища очередь не работает */ }
-  }
-  function enqueue(table, row) { writeQueue([...readQueue(), { table, row }]); }
-
-  // Отправка одной записи: "ok" — записана (или уже была), "bad" — база её отвергла, "later" — повторить позже
-  async function postRow(table, row) {
-    let r;
     try {
-      r = await api(table, { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
+      const r = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload), signal: ctrl.signal });
+      if (!r.ok) throw new Error("http " + r.status);
+      return await r.json();
+    } finally { clearTimeout(timer); }
+  }
+
+  // Отправка одной записи: "ok" — записана (или уже была), "bad" — скрипт её отверг, "later" — повторить позже
+  async function postRow(table, row) {
+    let out;
+    try {
+      out = await callScript({ action: table === "games" ? "game" : "start", row });
     } catch (e) { return { res: "later", msg: "network" }; }
-    if (r.ok) return { res: "ok" };
-    const msg = await r.text();
-    if (msg.includes("duplicate")) return { res: "ok", msg };
+    if (out.ok) return { res: "ok" };
+    const msg = String(out.error || "");
     if (msg.includes("bad_game")) return { res: "bad", msg };
     return { res: "later", msg };
   }
@@ -901,12 +888,8 @@ th { font-weight: 600; }
   async function loadStats(attempt = 1) {
     if (!statsOn) return;
     try {
-      const [sr, mr] = await Promise.all([
-        api("games_stats?select=*"),
-        api("rpc/player_stats", { method: "POST", body: JSON.stringify({ p: playerId() }) })
-      ]);
-      if (!sr.ok) return;
-      const st = (await sr.json())[0];
+      const data = await callScript({ action: "stats", player: playerId() });
+      const st = data.stats;
       if (!st || !st.games) return;
       $("stats").hidden = false;
 
@@ -940,7 +923,7 @@ th { font-weight: 600; }
       }
 
       // 4. Личные результаты
-      const me = mr.ok ? (await mr.json())[0] : null;
+      const me = data.me;
       $("stMine").hidden = !(me && me.games);
       if (me && me.games) {
         $("stMine").innerHTML = "<h3>Ваши партии</h3>" +
