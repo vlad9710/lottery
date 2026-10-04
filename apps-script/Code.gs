@@ -9,7 +9,7 @@ const GAMES = "games";
 const STARTS = "starts";
 const GAME_COLS = ["created_at", "game_id", "player", "grid", "line", "best_line", "line_sum", "score",
   "expected", "best_expected", "p_jack", "p_big", "p_mid", "elf_possible", "elf_shown", "elf_moments",
-  "elf_kind", "elf_done"];
+  "elf_kind", "elf_done", "lang"];
 const START_COLS = ["created_at", "game_id", "player"];
 
 const LINES = [[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6],[6,7,8],[3,4,5],[0,1,2]];
@@ -96,7 +96,8 @@ function addGame(r) {
       expected: r.expected, best_expected: r.best_expected,
       p_jack: r.p_jack || 0, p_big: r.p_big, p_mid: r.p_mid,
       elf_possible: !!r.elf_possible, elf_shown: !!r.elf_shown, elf_moments: r.elf_moments || 0,
-      elf_kind: r.elf_kind || "", elf_done: r.elf_done || ""
+      elf_kind: r.elf_kind || "", elf_done: r.elf_done || "",
+      lang: r.lang || ""  // язык сайта, на котором сыграна партия; на сайте не показывается
     });
     if (r.game_id) cache.put("gid:" + r.game_id, "1", 21600);
     cache.put("g:" + r.player, "1", GAME_GAP);
@@ -120,6 +121,7 @@ function checkGame(r) {
   if (!int(r.elf_moments || 0, 0, 3)) return "elf_moments";
   if (r.elf_kind && ["fill", "replace", "both"].indexOf(r.elf_kind) < 0) return "elf_kind";
   if (r.elf_done && ["fill", "replace"].indexOf(r.elf_done) < 0) return "elf_done";
+  if (r.lang && ["ru", "en"].indexOf(r.lang) < 0) return "lang";
 
   // цифры на поле: от 3 до 5 открытых, без повторов
   const g = r.grid.split("").map(Number);

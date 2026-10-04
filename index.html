@@ -1046,7 +1046,8 @@ th { font-weight: 600; }
       elf_shown: $("elfCheck").checked,
       elf_moments: elfState().possible || $("elfCheck").checked ? 1 : 0,
       elf_kind: elfKind || elfDone(),
-      elf_done: elfDone()
+      elf_done: elfDone(),
+      lang  // язык сайта при записи — только для таблицы, в статистике не показывается
     };
     // Не ждём ответа сервера: кладём в очередь и сразу пишем «Записано» — очередь отправит сама
     enqueue("games", row);
