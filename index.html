@@ -887,6 +887,7 @@ th { font-weight: 600; }
   }
 
   $("reset").addEventListener("click", () => {
+    if (updateReady) { location.reload(); return; }
     grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE()); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; elfKind = null; update();
   });
 
@@ -1162,6 +1163,32 @@ th { font-weight: 600; }
     applyLang(); buildPad(); hint(picked >= 0 ? t("hintCell", CELL_NAMES()[picked]) : HINT_IDLE()); update();
     if (lastStats) renderStats(lastStats);
   }));
+
+  // ---------- Тихое обновление ----------
+  // Раз в несколько минут и при возвращении на вкладку сверяем метку страницы на сервере.
+  // Если вышла новая версия — перезагружаемся только в безопасный момент: по «Начать заново»
+  // или при возвращении на вкладку, когда партия ещё не начата. Посреди партии не трогаем.
+  const UPDATE_EVERY = 5 * 60 * 1000;
+  let pageStamp = null, updateReady = false;
+  async function pageVersion() {
+    try {
+      const r = await fetch(location.href.split("#")[0], { method: "HEAD", cache: "no-store" });
+      return r.ok ? (r.headers.get("etag") || r.headers.get("last-modified")) : null;
+    } catch (e) { return null; }
+  }
+  async function checkUpdate() {
+    const v = await pageVersion();
+    if (!v) return;
+    if (!pageStamp) pageStamp = v;
+    else if (v !== pageStamp) updateReady = true;
+  }
+  checkUpdate();
+  setInterval(checkUpdate, UPDATE_EVERY);
+  document.addEventListener("visibilitychange", async () => {
+    if (document.hidden) return;
+    await checkUpdate();
+    if (updateReady && !grid.some(Boolean)) location.reload();
+  });
 
   applyLang(); buildBoard(); buildPad(); loadStats(); flushQueue(); hint(HINT_IDLE()); update();
 })();
