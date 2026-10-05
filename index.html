@@ -872,6 +872,8 @@ th { font-weight: 600; }
         } else {
           $("verdict").textContent = t("verdictOpen", CELL_NAMES()[lastBest]);
           $("sub").textContent = t("subOpen");
+          // Сразу выбираем советуемую клетку и показываем кнопки цифр — остаётся нажать цифру
+          picked = lastBest; showPad();
         }
       } else {
         $("verdict").textContent = t("verdictTake", LINE_NAMES()[bestLine]);
