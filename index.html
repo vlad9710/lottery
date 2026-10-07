@@ -888,7 +888,26 @@ th { font-weight: 600; }
     }, 20);
   }
 
+  // Плавная прокрутка за заданное время — одинаково заметная и на коротком, и на длинном пути
+  function scrollToY(y, ms) {
+    const from = window.scrollY, start = performance.now();
+    const step = now => {
+      const k = Math.min(1, (now - start) / ms);
+      const ease = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+      window.scrollTo({ top: from + (y - from) * ease, behavior: "instant" });
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
   $("reset").addEventListener("click", () => {
+    // Новая партия начинается с поля — если оно ушло вверх, возвращаем его к верхнему краю экрана
+    // (перед перезагрузкой — мгновенно, иначе браузер не успеет докрутить)
+    const boardTop = Math.max(0, $("board").getBoundingClientRect().top + window.scrollY - 12);
+    if (window.scrollY > boardTop) {
+      if (updateReady) window.scrollTo({ top: boardTop, behavior: "instant" });
+      else scrollToY(boardTop, 400);
+    }
     if (updateReady) { location.reload(); return; }
     grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE()); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; elfKind = null; update();
   });
