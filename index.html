@@ -1140,16 +1140,17 @@ th { font-weight: 600; }
     try { localStorage.setItem(STATS_KEY, JSON.stringify(data)); } catch (e) { /* без хранилища просто не запоминаем */ }
   }
 
-  async function loadStats(attempt = 1) {
+  // open — запрос при открытии страницы: по нему скрипт считает открытия сайта
+  async function loadStats(attempt = 1, open = false) {
     if (!statsOn) return;
     if (attempt === 1) { const cached = readCachedStats(); if (cached) renderStats(cached); }
     try {
-      const data = await callScript({ action: "stats", player: playerId() });
+      const data = await callScript({ action: "stats", player: playerId(), open });
       saveCachedStats(data);
       renderStats(data);
     } catch (e) {
       // Связь оборвалась — тихо пробуем ещё раз
-      if (attempt < API_TRIES) setTimeout(() => loadStats(attempt + 1), 200);
+      if (attempt < API_TRIES) setTimeout(() => loadStats(attempt + 1, open), 200);
     }
   }
 
@@ -1243,7 +1244,7 @@ th { font-weight: 600; }
     if (updateReady && !grid.some(Boolean)) location.reload();
   });
 
-  applyLang(); buildBoard(); buildPad(); loadStats(); flushQueue(); hint(HINT_IDLE()); update();
+  applyLang(); buildBoard(); buildPad(); loadStats(1, true); flushQueue(); hint(HINT_IDLE()); update();
 })();
 </script>
 </body>

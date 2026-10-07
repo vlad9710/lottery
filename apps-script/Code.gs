@@ -1,5 +1,7 @@
 // Хранилище статистики моментальной лотереи в Google Таблице.
 // Калькулятор шлёт сюда POST с JSON вида {action, ...}: "start", "game" или "stats".
+// Запрос "stats" приходит при каждом открытии сайта — по нему же считаем посещения: уникальных
+// людей по дням (лист «visits») и все открытия страницы по дням (лист «opens», пометка open).
 // Установка: Расширения → Apps Script → вставить этот файл → Начать развёртывание →
 // Веб-приложение, «Запуск от имени: я», «Доступ: все».
 // Листы «games» и «starts» создаются сами. Можно заранее импортировать на них выгрузку
@@ -11,6 +13,10 @@ const GAME_COLS = ["created_at", "game_id", "player", "grid", "line", "best_line
   "expected", "best_expected", "p_jack", "p_big", "p_mid", "elf_possible", "elf_shown", "elf_moments",
   "elf_kind", "elf_done", "lang"];
 const START_COLS = ["created_at", "game_id", "player"];
+const VISITS = "visits";
+const VISIT_COLS = ["created_at", "day", "player"];
+const OPENS = "opens";
+const OPEN_COLS = ["day", "opens"];
 
 const LINES = [[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6],[6,7,8],[3,4,5],[0,1,2]];
 const PAY = {6:1680,7:84,8:630,9:280,10:42,11:34,12:180,13:120,14:53,15:105,16:53,17:144,18:48,19:202,20:105,21:51,22:420,23:840,24:1008};
@@ -25,7 +31,11 @@ function doPost(e) {
   try {
     if (body.action === "start") return reply(addStart(body.row || {}));
     if (body.action === "game") return reply(addGame(body.row || {}));
-    if (body.action === "stats") return reply(getStats(String(body.player || "")));
+    if (body.action === "stats") {
+      const player = String(body.player || "");
+      noteVisit(player, body.open === true);
+      return reply(getStats(player));
+    }
     return reply({ error: "bad_request" });
   } catch (err) {
     return reply({ error: "server: " + err });
@@ -152,6 +162,47 @@ function canMake(free, k, need) {
 // ---------- Статистика ----------
 // Общая сводка и личная статистика лежат в кэше по минуте; если обе есть — таблицу не читаем.
 // После записи партии кэш сбрасывается (см. addGame)
+// Посещение: одна строка на игрока в день. Если записать не вышло — статистику всё равно отдаём
+function noteVisit(player, open) {
+  if (player.length < 1 || player.length > 20) return;
+  try {
+    const day = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+    if (open) countOpen(day);
+    const cache = CacheService.getScriptCache();
+    const key = "v:" + day + ":" + player;
+    if (cache.get(key)) return;
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(5000)) return;
+    try {
+      appendByHeader(sheet(VISITS, VISIT_COLS), { created_at: new Date(), day: day, player });
+      // Кэш живёт не дольше 6 часов, поэтому за день у игрока может набраться 2–4 строки — для подсчёта по дням это не мешает
+      cache.put(key, "1", 21600);
+    } finally { lock.releaseLock(); }
+  } catch (err) { /* посещение не записалось — не страшно */ }
+}
+
+// Открытия страницы: одна строка на день, в ней счётчик
+function countOpen(day) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  try {
+    const sh = sheet(OPENS, OPEN_COLS);
+    const last = sh.getLastRow();
+    const header = headerOf(sh);
+    const dc = header.indexOf("day") + 1, oc = header.indexOf("opens") + 1;
+    if (last > 1) {
+      const v = sh.getRange(last, dc).getValue();
+      const lastDay = v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), "yyyy-MM-dd") : String(v);
+      if (lastDay === day) {
+        const cell = sh.getRange(last, oc);
+        cell.setValue(Number(cell.getValue() || 0) + 1);
+        return;
+      }
+    }
+    appendByHeader(sh, { day, opens: 1 });
+  } finally { lock.releaseLock(); }
+}
+
 function getStats(player) {
   const cache = CacheService.getScriptCache();
   const fromCache = k => { const v = cache.get(k); return v ? JSON.parse(v) : null; };
