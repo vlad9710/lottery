@@ -565,6 +565,7 @@ th { font-weight: 600; }
   const ELF_CHANCE = 0.2;
   let elfChance = false; // в этой партии фея могла сработать
   let elfKind = null;    // как могла: "fill" — поставить в закрытую клетку, "replace" — заменить открытую, "both"
+  let elfLines = 0;      // сколько линий фея могла доделать (только для таблицы: растёт ли её шанс при двух линиях)
 
   function elfCandidates(g) {
     const out = [];
@@ -808,6 +809,11 @@ th { font-weight: 600; }
     const fill = c.some(x => !x.prev), repl = c.some(x => x.prev);
     const k = fill && repl ? "both" : fill ? "fill" : "replace";
     elfKind = !elfKind || elfKind === k ? k : "both";
+    const lines = LINES.filter(l => [[1,2,3],[7,8,9]].some(S => {
+      const have = l.filter(i => S.includes(grid[i]));
+      return have.length === 2 && !grid.includes(S.find(d => !have.some(i => grid[i] === d)));
+    })).length;
+    elfLines = Math.max(elfLines, lines);
   }
 
   // Что сделала фея, если игрок отметил, что она появилась. Её цифра уже может быть на поле:
@@ -940,7 +946,7 @@ th { font-weight: 600; }
       else scrollToY(boardTop, 400);
     }
     if (updateReady) { location.reload(); return; }
-    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE()); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; elfKind = null; update();
+    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE()); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; elfKind = null; elfLines = 0; update();
   });
 
   // ---------- Статистика ----------
@@ -1100,6 +1106,7 @@ th { font-weight: 600; }
       elf_shown: $("elfCheck").checked,
       elf_moments: elfState().possible || $("elfCheck").checked ? 1 : 0,
       elf_kind: elfKind || elfDone(),
+      elf_lines: elfLines,
       elf_done: elfDone(),
       lang  // язык сайта при записи — только для таблицы, в статистике не показывается
     };
