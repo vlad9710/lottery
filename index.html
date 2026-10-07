@@ -809,11 +809,34 @@ th { font-weight: 600; }
     const fill = c.some(x => !x.prev), repl = c.some(x => x.prev);
     const k = fill && repl ? "both" : fill ? "fill" : "replace";
     elfKind = !elfKind || elfKind === k ? k : "both";
-    const lines = LINES.filter(l => [[1,2,3],[7,8,9]].some(S => {
-      const have = l.filter(i => S.includes(grid[i]));
-      return have.length === 2 && !grid.includes(S.find(d => !have.some(i => grid[i] === d)));
+    elfLines = Math.max(elfLines, elfLineCount(grid));
+  }
+
+  // Сколько линий фея могла бы доделать на поле g
+  function elfLineCount(g) {
+    return LINES.filter(l => [[1,2,3],[7,8,9]].some(S => {
+      const have = l.filter(i => S.includes(g[i]));
+      return have.length === 2 && !g.includes(S.find(d => !have.some(i => g[i] === d)));
     })).length;
-    elfLines = Math.max(elfLines, lines);
+  }
+
+  // Число линий для таблицы. Если игрок ввёл поле уже после феи (линия собрана), восстанавливаем,
+  // каким оно было до неё: убираем или подменяем по очереди цифры собранной линии. Совпало у всех
+  // вариантов — пишем это число, разошлось — 0 («неизвестно»)
+  function elfLinesForTable() {
+    if (elfLines || !$("elfCheck").checked) return elfLines;
+    const opened = grid.filter(Boolean).length, counts = new Set();
+    for (const l of LINES) for (const S of [[1,2,3],[7,8,9]]) {
+      if (!l.every(i => S.includes(grid[i]))) continue;
+      for (const i of l) {
+        const tries = opened === 5 ? [0] : [1,2,3,4,5,6,7,8,9].filter(d => !grid.includes(d));
+        for (const d of tries) {
+          const g = grid.slice(); g[i] = d;
+          if (elfCandidates(g).some(c => c.cell === i && c.digit === grid[i])) counts.add(elfLineCount(g));
+        }
+      }
+    }
+    return counts.size === 1 ? [...counts][0] : 0;
   }
 
   // Что сделала фея, если игрок отметил, что она появилась. Её цифра уже может быть на поле:
@@ -1106,7 +1129,7 @@ th { font-weight: 600; }
       elf_shown: $("elfCheck").checked,
       elf_moments: elfState().possible || $("elfCheck").checked ? 1 : 0,
       elf_kind: elfKind || elfDone(),
-      elf_lines: elfLines,
+      elf_lines: elfLinesForTable(),
       elf_done: elfDone(),
       lang  // язык сайта при записи — только для таблицы, в статистике не показывается
     };
