@@ -901,6 +901,8 @@ th { font-weight: 600; }
     $("report").hidden = true;
     $("guard").hidden = true;
 
+    // На пустом поле сбрасывать нечего — кнопку прячем
+    $("reset").hidden = known === 0;
     if (known === 0) {
       selLine = -1;
       $("step").textContent = t("stepStart");
