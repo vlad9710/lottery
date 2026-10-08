@@ -290,7 +290,7 @@ th { font-weight: 600; }
         <p class="report-note" id="reportNote"></p>
         <div class="elf-q" id="elfCheckWrap" hidden>
           <p class="elf-q-text" id="elfQText"></p>
-          <div class="seg"><button type="button" id="elfYesBtn" data-i18n="elfYes">Появилась</button><button type="button" id="elfNoBtn" data-i18n="elfNo">Не появилась</button></div>
+          <div class="seg" id="elfBtns"></div>
           <p class="elf-hint" id="elfHint" data-i18n="elfHint">Сначала отметьте, появилась ли фея, — потом выберите сумму.</p>
         </div>
         <input type="checkbox" id="elfCheck" hidden>
@@ -386,6 +386,9 @@ th { font-weight: 600; }
       doneNext: " Для новой партии нажмите «Начать заново».",
       elfQPossible: "Фея могла появиться в этой партии:",
       elfQJack: "Линия собрана. Фея помогала?",
+      elfQOpts: "Фея могла появиться. Что было в игре?",
+      elfOptReplace: (p, d, line) => "Заменила " + p + " на " + d + " (" + line.toLowerCase() + ")",
+      elfOptFill: (d, line) => "Поставила " + d + " (" + line.toLowerCase() + ")",
       reportNote: line => "Линия: " + line.toLowerCase() + ". Если взяли другую, сначала нажмите на её значок у поля.",
       sumBtn: pay => pay + " очков",
       gamesN: n => ruPlural(n, "партия", "партии", "партий"),
@@ -467,6 +470,9 @@ th { font-weight: 600; }
       doneNext: " Press “Start over” for a new game.",
       elfQPossible: "The Elf's Blessing could have appeared this game:",
       elfQJack: "Line complete. Did the Elf's Blessing help?",
+      elfQOpts: "The Elf's Blessing could have appeared. What happened in the game?",
+      elfOptReplace: (p, d, line) => "Replaced " + p + " with " + d + " (" + line.toLowerCase() + ")",
+      elfOptFill: (d, line) => "Added " + d + " (" + line.toLowerCase() + ")",
       reportNote: line => "Line: " + line.toLowerCase() + ". If you took another one, tap its badge next to the board first.",
       sumBtn: pay => pay + " pts",
       gamesN: n => n + (n === 1 ? " game" : " games"),
@@ -566,6 +572,9 @@ th { font-weight: 600; }
   let elfChance = false; // в этой партии фея могла сработать
   let elfKind = null;    // как могла: "fill" — поставить в закрытую клетку, "replace" — заменить открытую, "both"
   let elfLines = 0;      // сколько линий фея могла доделать (только для таблицы: растёт ли её шанс при двух линиях)
+  let elfOpts = [];      // что фея могла сделать на поле до неё: { cell, digit, prev, line }
+  let elfApplied = null; // вариант, который игрок отметил, — его цифра уже стоит на поле
+  let elfAutoSend = false; // после отметки феи записать сумму без нажатия
 
   function elfCandidates(g) {
     const out = [];
@@ -802,14 +811,17 @@ th { font-weight: 600; }
 
   // Все попытки израсходованы: запоминаем, могла ли сработать фея
   function noteElfChance(allOpened) {
-    if (!allOpened) return;
+    if (elfApplied) return;  // на поле уже цифра феи — варианты считаны с поля до неё
+    if (!allOpened) { elfOpts = []; return; }
     const c = elfCandidates(grid);
-    if (!c.length) return;
+    if (!c.length) { elfOpts = []; return; }
     elfChance = true;
     const fill = c.some(x => !x.prev), repl = c.some(x => x.prev);
     const k = fill && repl ? "both" : fill ? "fill" : "replace";
     elfKind = !elfKind || elfKind === k ? k : "both";
     elfLines = Math.max(elfLines, elfLineCount(grid));
+    elfOpts = c.map(x => ({ ...x, line: LINES.findIndex(l => l.includes(x.cell) &&
+      [[1,2,3],[7,8,9]].some(S => S.includes(x.digit) && l.every(i => i === x.cell || S.includes(grid[i])))) }));
   }
 
   // Сколько линий фея могла бы доделать на поле g
@@ -880,6 +892,10 @@ th { font-weight: 600; }
   function update() {
     const id = ++updateId;
     hideResetWarn();
+    // Игрок сам поменял клетку с цифрой феи — отмеченный вариант больше не действует
+    if (elfApplied && grid[elfApplied.cell] !== elfApplied.digit) {
+      elfApplied = null; elfAnswer = null; elfTouched = false; $("elfCheck").checked = false;
+    }
     const known = grid.filter(Boolean).length;
     lastCells = Array(9).fill(null); lastBest = -1; bestLine = -1; finished = false;
     $("report").hidden = true;
@@ -933,6 +949,12 @@ th { font-weight: 600; }
       if (finished) sendStart();
       selLine = finished ? bestLine : -1;
       renderDetail(); paintCells(); renderReport();
+      // Игрок отметил, что сделала фея: линия собрана, сумма одна — записываем её сразу
+      if (elfAutoSend) {
+        elfAutoSend = false;
+        const outs = finished && selLine >= 0 && !sent ? lineOutcomes(grid, LINES[selLine]) : [];
+        if (outs.length === 1) sendResult(outs[0]);
+      }
     }, 20);
   }
 
@@ -969,7 +991,7 @@ th { font-weight: 600; }
       else scrollToY(boardTop, 400);
     }
     if (updateReady) { location.reload(); return; }
-    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE()); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; elfKind = null; elfLines = 0; update();
+    grid = Array(9).fill(0); picked = -1; pad.hidden = true; hint(HINT_IDLE()); sent = false; sentQueued = false; elfTouched = false; elfAnswer = null; $("elfCheck").checked = false; gameId = newGameId(); startSent = false; elfChance = false; elfKind = null; elfLines = 0; elfOpts = []; elfApplied = null; update();
   });
 
   // ---------- Статистика ----------
@@ -986,8 +1008,25 @@ th { font-weight: 600; }
   let elfTouched = false;  // игрок сам трогал галочку — больше не переставляем
   let elfAnswer = null;    // ответ про фею: true / false / null — ещё не ответили
   const answerElf = v => { elfAnswer = v; elfTouched = true; $("elfCheck").checked = v; renderReport(); };
-  $("elfYesBtn").addEventListener("click", () => answerElf(true));
-  $("elfNoBtn").addEventListener("click", () => answerElf(false));
+  // Игрок отметил, что сделала фея: ставим её цифру на поле — калькулятор сам выберет собранную линию
+  function applyElf(o) {
+    if (elfApplied) grid[elfApplied.cell] = elfApplied.prev;
+    grid[o.cell] = o.digit; elfApplied = o; elfAutoSend = true;
+    elfAnswer = true; elfTouched = true; $("elfCheck").checked = true;
+    picked = -1; pad.hidden = true; update();
+  }
+  // «Не появилась»: если цифру феи уже поставили — возвращаем поле как было
+  function noElf() {
+    if (elfApplied) { grid[elfApplied.cell] = elfApplied.prev; elfApplied = null; }
+    elfAnswer = false; elfTouched = true; $("elfCheck").checked = false;
+    update();
+  }
+  function elfButton(label, on, onClick) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = label; if (on) b.className = "on";
+    b.addEventListener("click", onClick);
+    return b;
+  }
 
   // Анонимный id браузера, чтобы считать число игроков
   function playerId() {
@@ -1085,12 +1124,25 @@ th { font-weight: 600; }
     }
     // Вопрос про фею — только когда она могла сработать или джекпот уже на поле
     const jackLine = LINES.some(l => [[1,2,3],[7,8,9]].some(S => l.every(i => S.includes(grid[i]))));
-    const elfAsk = elfState().possible || jackLine;
-    if (!elfTouched && elfState().shown) { elfAnswer = true; $("elfCheck").checked = true; }
+    const elfAsk = elfOpts.length > 0 || elfState().possible || jackLine;
+    const btns = $("elfBtns");
+    btns.innerHTML = "";
+    if (elfOpts.length) {
+      // Конкретные варианты: что фея могла сделать. Если её цифра уже на поле — вариант отмечен
+      const cur = elfApplied || elfOpts.find(o => grid[o.cell] === o.digit);
+      if (cur && !elfTouched) { elfAnswer = true; $("elfCheck").checked = true; }
+      $("elfQText").textContent = t("elfQOpts");
+      elfOpts.forEach(o => btns.appendChild(elfButton(
+        o.prev ? t("elfOptReplace", o.prev, o.digit, LINE_SHORT()[o.line]) : t("elfOptFill", o.digit, LINE_SHORT()[o.line]),
+        elfAnswer === true && cur && cur.cell === o.cell && cur.digit === o.digit, () => applyElf(o))));
+      btns.appendChild(elfButton(t("elfNo"), elfAnswer === false, noElf));
+    } else {
+      if (!elfTouched && elfState().shown) { elfAnswer = true; $("elfCheck").checked = true; }
+      $("elfQText").textContent = elfState().possible ? t("elfQPossible") : t("elfQJack");
+      btns.appendChild(elfButton(t("elfYes"), elfAnswer === true, () => answerElf(true)));
+      btns.appendChild(elfButton(t("elfNo"), elfAnswer === false, () => answerElf(false)));
+    }
     $("elfCheckWrap").hidden = !elfAsk;
-    $("elfQText").textContent = elfState().possible ? t("elfQPossible") : t("elfQJack");
-    $("elfYesBtn").className = elfAnswer === true ? "on" : "";
-    $("elfNoBtn").className = elfAnswer === false ? "on" : "";
     const waitElf = elfAsk && elfAnswer === null;
     $("elfHint").hidden = !waitElf;
     $("reportNote").textContent = t("reportNote", LINE_SHORT()[selLine]);
