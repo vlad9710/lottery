@@ -4,15 +4,20 @@
 // людей по дням (лист «visits») и все открытия страницы по дням (лист «opens», пометка open).
 // Установка: Расширения → Apps Script → вставить этот файл → Начать развёртывание →
 // Веб-приложение, «Запуск от имени: я», «Доступ: все».
-// Листы «games» и «starts» создаются сами. Можно заранее импортировать на них выгрузку
+// Листы «games», «starts» и «settings» создаются сами. На «settings» — номер сезона (season) и
+// открыт ли он (open: TRUE/FALSE). Пока сезон закрыт, партии не записываются, а посещения — да.
+// Сезон идёт неделю: с пятницы 3:00 МСК (00:00 UTC) до следующей пятницы. При открытии скрипт сам
+// пишет в «settings» дату старта (start) и через 7 дней перестаёт принимать партии, даже если open = TRUE.
+// Можно заранее импортировать на «games» и «starts» выгрузку
 // из Supabase: столбцы ищутся по заголовкам, лишние не мешают.
 
 const GAMES = "games";
 const STARTS = "starts";
 const GAME_COLS = ["created_at", "game_id", "player", "grid", "line", "best_line", "line_sum", "score",
   "expected", "best_expected", "p_jack", "p_big", "p_mid", "elf_possible", "elf_shown", "elf_moments",
-  "elf_kind", "elf_done", "lang", "elf_lines"];
-const START_COLS = ["created_at", "game_id", "player"];
+  "elf_kind", "elf_done", "lang", "elf_lines", "season"];
+const START_COLS = ["created_at", "game_id", "player", "season"];
+const SETTINGS = "settings";
 const VISITS = "visits";
 const VISIT_COLS = ["created_at", "day", "player"];
 const OPENS = "opens";
@@ -72,18 +77,76 @@ function appendByHeader(sh, obj) {
   sh.appendRow(headerOf(sh).map(c => (c in obj ? obj[c] : "")));
 }
 
+// ---------- Сезон ----------
+const DAY = 86400000, WEEK = 7 * DAY;
+
+// Начало недели ивента: пятница 00:00 UTC (= 3:00 МСК) в момент ms или раньше
+function fridayStart(ms) {
+  const d = new Date(ms);
+  const back = (d.getUTCDay() - 5 + 7) % 7;
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - back);
+}
+const isoDay = ms => new Date(ms).toISOString().slice(0, 10);
+
+// Настройки с листа «settings»: столбец A — название, B — значение. Читаем не чаще раза в 15 секунд.
+// open в ответе — с учётом недели: после пятницы 3:00 МСК сезон закрыт, даже если в таблице TRUE
+function seasonSettings() {
+  const cache = CacheService.getScriptCache();
+  const c = cache.get("settings");
+  if (c) return JSON.parse(c);
+  const book = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = book.getSheetByName(SETTINGS);
+  if (!sh) {
+    sh = book.insertSheet(SETTINGS);
+    sh.appendRow(["setting", "value"]);
+    sh.appendRow(["season", 1]);
+    sh.appendRow(["open", false]);
+  }
+  const vals = sh.getRange(1, 1, Math.max(sh.getLastRow(), 1), 2).getValues();
+  const row = k => vals.findIndex(v => String(v[0]).trim().toLowerCase() === k);
+  const get = k => { const i = row(k); return i < 0 ? "" : vals[i][1]; };
+  const put = (k, v) => { const i = row(k); if (i < 0) sh.appendRow([k, v]); else sh.getRange(i + 1, 2).setValue(v); };
+  const season = Math.max(1, Math.floor(Number(get("season")) || 1));
+  const wantOpen = isTrue(get("open"));
+  // Дата старта своя у каждого сезона. Нет её — при открытии берём ближайшую пятницу
+  let startMs = NaN;
+  if (Number(get("start_season")) === season) {
+    const v = get("start");
+    startMs = v instanceof Date ? Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()) : Date.parse(String(v).trim().slice(0, 10) + "T00:00:00Z");
+  }
+  if (wantOpen && isNaN(startMs)) {
+    const now = Date.now(), prev = fridayStart(now), next = prev + WEEK;
+    startMs = now - prev <= next - now ? prev : next;
+    put("start", "'" + isoDay(startMs));
+    put("start_season", season);
+  }
+  const set = {
+    season,
+    open: wantOpen && !isNaN(startMs) && Date.now() < startMs + WEEK,
+    start: isNaN(startMs) ? "" : isoDay(startMs),
+    end: isNaN(startMs) ? "" : isoDay(startMs + WEEK)
+  };
+  cache.put("settings", JSON.stringify(set), 15);
+  return set;
+}
+
+// Сезон записи; у старых строк его нет — это первый сезон
+const seasonOf = r => Math.max(1, Math.floor(Number(r.season) || 1));
+
 // ---------- Первый этап: партия дошла до выбора линии ----------
 function addStart(row) {
   const player = String(row.player || "");
   const gameId = String(row.game_id || "");
   if (player.length < 1 || player.length > 20 || !/^[0-9a-f-]{36}$/i.test(gameId)) return { error: "bad_game: start" };
+  const set = seasonSettings();
+  if (!set.open) return { error: "closed" };
   const cache = CacheService.getScriptCache();
   if (cache.get("sid:" + gameId)) return { ok: true, duplicate: true };
   if (cache.get("s:" + player)) return { error: "rate_limit" };
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    appendByHeader(sheet(STARTS, START_COLS), { created_at: new Date(), game_id: gameId, player });
+    appendByHeader(sheet(STARTS, START_COLS), { created_at: new Date(), game_id: gameId, player, season: set.season });
     cache.put("sid:" + gameId, "1", 21600);
     cache.put("s:" + player, "1", START_GAP);
   } finally { lock.releaseLock(); }
@@ -94,6 +157,8 @@ function addStart(row) {
 function addGame(r) {
   const bad = checkGame(r);
   if (bad) return { error: "bad_game: " + bad };
+  const set = seasonSettings();
+  if (!set.open) return { error: "closed" };
   const cache = CacheService.getScriptCache();
   if (r.game_id && cache.get("gid:" + r.game_id)) return { ok: true, duplicate: true };
   if (cache.get("g:" + r.player)) return { error: "rate_limit" };
@@ -107,12 +172,13 @@ function addGame(r) {
       p_jack: r.p_jack || 0, p_big: r.p_big, p_mid: r.p_mid,
       elf_possible: !!r.elf_possible, elf_shown: !!r.elf_shown, elf_moments: r.elf_moments || 0,
       elf_kind: r.elf_kind || "", elf_done: r.elf_done || "", elf_lines: r.elf_lines || 0,
-      lang: r.lang || ""  // язык сайта, на котором сыграна партия; на сайте не показывается
+      lang: r.lang || "",  // язык сайта, на котором сыграна партия; на сайте не показывается
+      season: set.season
     });
     if (r.game_id) cache.put("gid:" + r.game_id, "1", 21600);
     cache.put("g:" + r.player, "1", GAME_GAP);
-    cache.remove("stats");
-    cache.remove("me:" + r.player);
+    cache.remove("stats2");
+    cache.remove("me2:" + r.player);
   } finally { lock.releaseLock(); }
   return { ok: true };
 }
@@ -204,23 +270,63 @@ function countOpen(day) {
   } finally { lock.releaseLock(); }
 }
 
+// Сводка по каждому сезону. stats/me — сезон, который сайт показывает по умолчанию (для старых версий сайта)
 function getStats(player) {
+  const set = seasonSettings();
   const cache = CacheService.getScriptCache();
   const fromCache = k => { const v = cache.get(k); return v ? JSON.parse(v) : null; };
-  let stats = fromCache("stats");
-  let me = player ? fromCache("me:" + player) : null;
-  if (stats && (!player || me)) return { stats, me };
-  const rows = readGames();
-  if (!stats) {
-    stats = summarize(rows);
-    stats.started = Math.max(0, sheet(STARTS, START_COLS).getLastRow() - 1);
-    cache.put("stats", JSON.stringify(stats), STATS_TTL);
+  let all = fromCache("stats2");
+  let mine = player ? fromCache("me2:" + player) : null;
+  if (!all || (player && !mine)) {
+    const rows = readGames();
+    if (!all) {
+      all = {};
+      const groups = {};
+      rows.forEach(r => (groups[seasonOf(r)] = groups[seasonOf(r)] || []).push(r));
+      const started = startsBySeason();
+      Object.keys(groups).forEach(k => {
+        const g = groups[k];
+        all[k] = summarize(g);
+        all[k].started = started[k] || 0;
+        // Даты — неделя ивента: у текущего сезона из настроек, у прошлых — по первой партии
+        const first = Math.min(...g.map(r => timeOf(r.created_at)).filter(t => !isNaN(t)));
+        const st = Number(k) === set.season && set.start ? Date.parse(set.start + "T00:00:00Z") : (isFinite(first) ? fridayStart(first) : NaN);
+        all[k].from = isNaN(st) ? "" : isoDay(st);
+        all[k].to = isNaN(st) ? "" : isoDay(st + WEEK);
+      });
+      cache.put("stats2", JSON.stringify(all), STATS_TTL);
+    }
+    if (player && !mine) {
+      mine = {};
+      const my = rows.filter(r => String(r.player) === player);
+      Object.keys(all).forEach(k => { mine[k] = summarizeMe(my.filter(r => String(seasonOf(r)) === k)); });
+      cache.put("me2:" + player, JSON.stringify(mine), STATS_TTL);
+    }
   }
-  if (player && !me) {
-    me = summarizeMe(rows.filter(r => String(r.player) === player));
-    cache.put("me:" + player, JSON.stringify(me), STATS_TTL);
-  }
-  return { stats, me };
+  const have = Object.keys(all).map(Number).filter(k => all[k].games);
+  const def = all[set.season] && all[set.season].games ? set.season : (have.length ? Math.max(...have) : set.season);
+  return { stats: all[def] || null, me: mine ? mine[def] || null : null,
+    season: set.season, open: set.open, start: set.start, end: set.end, seasons: all, me_seasons: mine };
+}
+
+// Время записи в миллисекундах; у строк, импортированных из Supabase, оно строкой вида «2026-10-02 20:56:45+00»
+function timeOf(v) {
+  if (v instanceof Date) return v.getTime();
+  const m = String(v || "").match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/);
+  return m ? Date.parse(m[1] + "T" + m[2] + "Z") : NaN;
+}
+
+// Сколько партий дошло до выбора линии — по сезонам
+function startsBySeason() {
+  const sh = sheet(STARTS, START_COLS);
+  const n = sh.getLastRow() - 1;
+  const out = {};
+  if (n < 1) return out;
+  const header = headerOf(sh);
+  const sc = header.indexOf("season");
+  const vals = sc < 0 ? [] : sh.getRange(2, sc + 1, n, 1).getValues();
+  for (let i = 0; i < n; i++) { const k = seasonOf({ season: sc < 0 ? "" : vals[i][0] }); out[k] = (out[k] || 0) + 1; }
+  return out;
 }
 
 // Партии с листа; столбцы — по заголовкам (подходит и для импорта из Supabase)

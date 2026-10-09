@@ -220,6 +220,8 @@ th { font-weight: 600; }
 
   /* Статистика игроков */
   .stats h2 { margin: 48px 0 14px; font-size: 20px; }
+  .st-season { margin: -6px 0 12px; font-size: 14px; color: var(--muted); }
+  .st-seasons { margin: 0 0 14px; }
   .st-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
   @media (min-width: 700px) { .st-grid { grid-template-columns: repeat(2, 1fr); } }
   .st-card { background: #fff; border: 1px solid var(--rule); border-radius: 16px; padding: 16px 18px; }
@@ -309,6 +311,8 @@ th { font-weight: 600; }
 
   <section class="stats" id="stats" hidden data-i18n-aria="statsH" aria-label="Статистика игроков">
     <h2 data-i18n="statsH">Статистика игроков</h2>
+    <div class="seg st-seasons" id="stSeasons" hidden></div>
+    <p class="st-season" id="stSeasonNote"></p>
     <div class="st-grid">
       <div class="st-card" id="stFair"></div>
       <div class="st-card" id="stGroups"></div>
@@ -323,6 +327,17 @@ th { font-weight: 600; }
 (() => {
   const DEFAULT_PAY = {6:1680,7:84,8:630,9:280,10:42,11:34,12:180,13:120,14:53,15:105,16:53,17:144,18:48,19:202,20:105,21:51,22:420,23:840,24:1008};
   const LINES = [[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6],[6,7,8],[3,4,5],[0,1,2]];
+  // Даты сезона: «2–9 октября 2026» / «Oct 2–9, 2026»; a и b — «2026-10-02»
+  function seasonRange(a, b, months, dm, style) {
+    if (!a) return "";
+    const [y1, m1, d1] = a.split("-").map(Number), [y2, m2, d2] = (b || a).split("-").map(Number);
+    const day = (d, m) => dm(d, months[m - 1]);
+    if (a === b || !b) return style === "en" ? day(d1, m1) + ", " + y1 : day(d1, m1) + " " + y1;
+    if (y1 === y2 && m1 === m2) return style === "en" ? months[m1 - 1] + " " + d1 + "–" + d2 + ", " + y1 : d1 + "–" + d2 + " " + months[m1 - 1] + " " + y1;
+    if (y1 === y2) return style === "en" ? day(d1, m1) + " – " + day(d2, m2) + ", " + y1 : day(d1, m1) + " – " + day(d2, m2) + " " + y1;
+    return style === "en" ? day(d1, m1) + ", " + y1 + " – " + day(d2, m2) + ", " + y2 : day(d1, m1) + " " + y1 + " – " + day(d2, m2) + " " + y2;
+  }
+
   // ---------- Языки: все тексты сайта на русском и английском ----------
   const LANG_KEY = "lotteryLang";
   let lang = (() => {
@@ -351,6 +366,12 @@ th { font-weight: 600; }
       allLinesH: "Что может дать каждая линия",
       linesNote: "Слева — сумма трёх цифр линии, справа — сколько очков она даёт. Сверху — средний выигрыш линии. Золотая рамка — лучшая линия.",
       statsH: "Статистика игроков",
+      seasonNow: "Текущий сезон",
+      seasonDates: (a, b) => seasonRange(a, b, ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"], (d, m) => d + " " + m, "ru"),
+      seasonNote: dates => "Сезон: " + dates + ".",
+      seasonPast: dates => "Прошлый сезон: " + dates + ".",
+      seasonEmpty: dates => " Текущий сезон" + (dates ? " (" + dates + ")" : "") + " открыт — его статистика появится после первых партий.",
+      seasonClosed: " Сезон закрыт — новые партии сейчас не записываются, калькулятор работает как обычно.",
       lineAcc: ["левую колонку","центральную колонку","правую колонку","диагональ ↘","диагональ ↙","нижний ряд","средний ряд","верхний ряд"],
       lineShort: ["Левая колонка","Центральная колонка","Правая колонка","Диагональ ↘","Диагональ ↙","Нижний ряд","Средний ряд","Верхний ряд"],
       cellNames: ["верхний левый угол","верхний центр","верхний правый угол","центр слева","центр","центр справа","нижний левый угол","нижний центр","нижний правый угол"],
@@ -435,6 +456,12 @@ th { font-weight: 600; }
       allLinesH: "What each line can pay",
       linesNote: "Left: the sum of the line's three numbers; right: the points it pays. On top: the line's average win. Gold frame: the best line.",
       statsH: "Player statistics",
+      seasonNow: "Current season",
+      seasonDates: (a, b) => seasonRange(a, b, ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], (d, m) => m + " " + d, "en"),
+      seasonNote: dates => "Season: " + dates + ".",
+      seasonPast: dates => "Previous season: " + dates + ".",
+      seasonEmpty: dates => " The current season" + (dates ? " (" + dates + ")" : "") + " is open — its statistics will appear after the first games.",
+      seasonClosed: " The season is closed — new games aren't recorded right now; the calculator works as usual.",
       lineAcc: ["the left column","the middle column","the right column","diagonal ↘","diagonal ↙","the bottom row","the middle row","the top row"],
       lineShort: ["Left column","Middle column","Right column","Diagonal ↘","Diagonal ↙","Bottom row","Middle row","Top row"],
       cellNames: ["the top-left corner","the top middle","the top-right corner","the middle left","the center","the middle right","the bottom-left corner","the bottom middle","the bottom-right corner"],
@@ -975,7 +1002,7 @@ th { font-weight: 600; }
   function hideResetWarn() { resetWarned = false; $("resetWarn").hidden = true; $("report").classList.remove("nudge"); }
 
   $("reset").addEventListener("click", () => {
-    if (statsOn && finished && selLine >= 0 && !sent && !resetWarned) {
+    if (canRecord() && finished && selLine >= 0 && !sent && !resetWarned) {
       resetWarned = true;
       $("resetWarn").hidden = false;
       $("report").classList.add("nudge");
@@ -1000,6 +1027,10 @@ th { font-weight: 600; }
   // Адрес скрипта Google Таблицы, где хранится статистика. Пока он пустой, запись и статистика спрятаны.
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_x3bVsvlihXWqDRGagNxRNGbZ5MUp1mx4XP2dqRDtL8D_1UAxbZi758JJ4Qsv47JZqA/exec";
   const statsOn = Boolean(SCRIPT_URL);
+  // Сезон открыт — партии записываются; закрыт — калькулятор работает, а блок записи спрятан.
+  // Узнаём из ответа скрипта (до ответа считаем закрытым — так ничего лишнего не отправим)
+  let seasonOpen = false;
+  const canRecord = () => statsOn && seasonOpen;
   let sent = false;
   let sentQueued = false;  // результат лёг в очередь, а не сразу в базу
   // Id партии: связывает «дошёл до выбора линии» и «отметил результат»
@@ -1074,7 +1105,8 @@ th { font-weight: 600; }
     } catch (e) { return { res: "later", msg: "network" }; }
     if (out.ok) return { res: "ok" };
     const msg = String(out.error || "");
-    if (msg.includes("bad_game")) return { res: "bad", msg };
+    // Отвергнута или сезон закрыт — повторять бесполезно
+    if (msg.includes("bad_game") || msg === "closed") return { res: "bad", msg };
     return { res: "later", msg };
   }
 
@@ -1106,7 +1138,7 @@ th { font-weight: 600; }
 
   // Первый этап: партия дошла до выбора линии (результата ещё нет)
   async function sendStart() {
-    if (!statsOn || startSent) return;
+    if (!canRecord() || startSent) return;
     startSent = true;
     const row = { game_id: gameId, player: playerId() };
     const { res, msg } = await postRowRetry("starts", row);
@@ -1116,7 +1148,7 @@ th { font-weight: 600; }
   // Кнопки с возможными суммами выбранной линии
   function renderReport() {
     const box = $("report");
-    if (!statsOn || !finished || selLine < 0) { box.hidden = true; return; }
+    if (!canRecord() || !finished || selLine < 0) { box.hidden = true; return; }
     box.hidden = false;
     if (sent) {
       $("reportNote").textContent = "";
@@ -1239,12 +1271,42 @@ th { font-weight: 600; }
   }
 
   let lastStats = null;  // последняя показанная статистика — перерисовать при смене языка
+  let statSeason = null;     // какой сезон показан
+  let statSeasonPicked = false; // игрок сам выбрал сезон — больше не переключаем за него
   function renderStats(data) {
     lastStats = data;
-    const st = data && data.stats;
-    if (!st || !st.games) return;
+    if (!data) return;
+    const wasOpen = seasonOpen;
+    seasonOpen = data.open === true;
+    if (wasOpen !== seasonOpen) renderReport();
+    // Сезоны с партиями; у старого ответа скрипта сезонов нет — тогда он один
+    const all = data.seasons || (data.stats ? { 1: data.stats } : {});
+    const mine = data.me_seasons || (data.me ? { 1: data.me } : {});
+    const list = Object.keys(all).map(Number).filter(k => all[k] && all[k].games).sort((a, b) => b - a);
+    if (!list.length) return;
+    // По умолчанию — текущий сезон, если он открыт и в нём есть партии, иначе последний
+    if (!statSeasonPicked || !list.includes(statSeason)) statSeason = seasonOpen && list.includes(data.season) ? data.season : list[0];
+    const st = all[statSeason];
     {
       $("stats").hidden = false;
+
+      // Переключатель сезонов — когда их с партиями больше одного
+      const sw = $("stSeasons");
+      sw.hidden = list.length < 2;
+      sw.innerHTML = "";
+      if (list.length > 1) list.forEach(k => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = seasonOpen && k === data.season ? t("seasonNow") : t("seasonDates", all[k].from, all[k].to);
+        if (k === statSeason) b.className = "on";
+        b.addEventListener("click", () => { statSeason = k; statSeasonPicked = true; renderStats(lastStats); });
+        sw.appendChild(b);
+      });
+      const dates = t("seasonDates", st.from, st.to);
+      const past = seasonOpen && statSeason !== data.season;
+      const empty = seasonOpen && !list.includes(data.season);
+      $("stSeasonNote").textContent = ((dates ? t(past ? "seasonPast" : "seasonNote", dates) : "") +
+        (seasonOpen ? "" : t("seasonClosed")) + (empty ? t("seasonEmpty", t("seasonDates", data.start, data.end)) : "")).trim();
 
       // 1. Сколько в среднем даёт партия
       $("stFair").innerHTML = "<h3>" + t("fairH") + "</h3>" +
@@ -1275,7 +1337,7 @@ th { font-weight: 600; }
       }
 
       // 4. Личные результаты
-      const me = data.me;
+      const me = mine[statSeason];
       $("stMine").hidden = !(me && me.games);
       if (me && me.games) {
         $("stMine").innerHTML = "<h3>" + t("mineH") + "</h3>" +
