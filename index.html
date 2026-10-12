@@ -798,6 +798,12 @@ th { font-weight: 600; }
   }
 
   // Клавиатура: цифра идёт в выбранную клетку, а если ничего не выбрано — в рекомендованную
+  // После ввода с клавиатуры снимаем фокус с клетки: иначе браузер оставляет рамку фокуса
+  // на клетке, по которой щёлкнули в начале, хотя советуемая клетка уже другая
+  function dropCellFocus() {
+    if ([...cells].includes(document.activeElement)) document.activeElement.blur();
+  }
+
   document.addEventListener("keydown", e => {
     if (e.target.closest && e.target.closest("input, textarea, select, summary")) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -807,10 +813,11 @@ th { font-weight: 600; }
       if (target < 0) { hint(t("hintPickFirst")); return; }
       e.preventDefault();
       setDigit(target, Number(k));
+      dropCellFocus();
       return;
     }
     if (k === "Backspace" || k === "Delete" || k === "0") {
-      if (picked >= 0) { e.preventDefault(); setDigit(picked, 0); }
+      if (picked >= 0) { e.preventDefault(); setDigit(picked, 0); dropCellFocus(); }
       return;
     }
     if (k === "Escape") { picked = -1; showPad(); paintCells(); return; }
